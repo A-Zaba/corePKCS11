@@ -112,7 +112,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Check complexity
-        uses: FreeRTOS/CI-CD-Github-Actions/complexity@main
+        uses: Skptak/CI-CD-Github-Actions/complexity@main
         with:
           path: ./
           horrid_threshold: 20
@@ -122,7 +122,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Check doxygen build
-        uses: FreeRTOS/CI-CD-Github-Actions/doxygen@main
+        uses: Skptak/CI-CD-Github-Actions/doxygen@main
         with:
           path: ./
 
@@ -217,7 +217,7 @@ jobs:
         with:
           python-version: '3.11.0'
       - name: Measure sizes
-        uses: FreeRTOS/CI-CD-Github-Actions/memory_statistics@main
+        uses: Skptak/CI-CD-Github-Actions/memory_statistics@main
         with:
             config: .github/memory_statistics_config.json
             check_against: docs/doxygen/include/size_table.md
@@ -226,7 +226,7 @@ jobs:
     runs-on: cbmc_ubuntu-latest_16-core
     steps:
       - name: Set up CBMC runner
-        uses: FreeRTOS/CI-CD-Github-Actions/set_up_cbmc_runner@main
+        uses: Skptak/CI-CD-Github-Actions/set_up_cbmc_runner@main
         with:
           cbmc_version: "5.61.0"
           cbmc_viewer_version: "3.5"
@@ -240,6 +240,6 @@ jobs:
         run: |
           cat test/build/_deps/mbedtls_2-src/include/mbedtls/pk.h
       - name: Run CBMC
-        uses: FreeRTOS/CI-CD-Github-Actions/run_cbmc@main
+        uses: Skptak/CI-CD-Github-Actions/run_cbmc@main
         with:
           proofs_dir: test/cbmc/proofs
