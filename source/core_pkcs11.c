@@ -4,31 +4,32 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
+#include "core_pkcs11.h"
 #include "core_pkcs11_config.h"
 #include "core_pkcs11_config_defaults.h"
-#include "core_pkcs11.h"
 
 /* C runtime includes. */
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 /**
@@ -47,19 +48,21 @@
  *
  *  \return CKR_OK or PKCS #11 error code. (PKCS #11 error codes are positive).
  */
-static CK_RV prvOpenSession( CK_SESSION_HANDLE * pxSession,
-                             CK_SLOT_ID xSlotId )
+static CK_RV prvOpenSession( CK_SESSION_HANDLE * pxSession, CK_SLOT_ID xSlotId )
 {
     CK_RV xResult;
     CK_FUNCTION_LIST_PTR pxFunctionList;
 
     xResult = C_GetFunctionList( &pxFunctionList );
 
-    if( ( xResult == CKR_OK ) && ( pxFunctionList != NULL ) && ( pxFunctionList->C_OpenSession != NULL ) )
+    if( ( xResult == CKR_OK ) && ( pxFunctionList != NULL ) &&
+        ( pxFunctionList->C_OpenSession != NULL ) )
     {
         xResult = pxFunctionList->C_OpenSession( xSlotId,
-                                                 CKF_SERIAL_SESSION | CKF_RW_SESSION,
-                                                 NULL, /* Application defined pointer. */
+                                                 CKF_SERIAL_SESSION |
+                                                     CKF_RW_SESSION,
+                                                 NULL, /* Application defined
+                                                          pointer. */
                                                  NULL, /* Callback function. */
                                                  pxSession );
     }
@@ -69,8 +72,7 @@ static CK_RV prvOpenSession( CK_SESSION_HANDLE * pxSession,
 
 /*-----------------------------------------------------------*/
 
-CK_RV xGetSlotList( CK_SLOT_ID ** ppxSlotId,
-                    CK_ULONG * pxSlotCount )
+CK_RV xGetSlotList( CK_SLOT_ID ** ppxSlotId, CK_ULONG * pxSlotCount )
 {
     CK_RV xResult = CKR_OK;
     CK_FUNCTION_LIST_PTR pxFunctionList = NULL;
@@ -101,18 +103,24 @@ CK_RV xGetSlotList( CK_SLOT_ID ** ppxSlotId,
     if( xResult == CKR_OK )
     {
         xResult = pxFunctionList->C_GetSlotList( CK_TRUE, /* Token Present. */
-                                                 NULL,    /* We just want to know how many slots there are. */
+                                                 NULL, /* We just want to know
+                                                          how many slots there
+                                                          are. */
                                                  pxSlotCount );
     }
 
     if( xResult == CKR_OK )
     {
-        if( *pxSlotCount == ( ( sizeof( CK_SLOT_ID ) * ( *pxSlotCount ) ) / ( sizeof( CK_SLOT_ID ) ) ) )
+        if( *pxSlotCount == ( ( sizeof( CK_SLOT_ID ) * ( *pxSlotCount ) ) /
+                              ( sizeof( CK_SLOT_ID ) ) ) )
         {
             /* MISRA Ref 11.5.1 [Void pointer assignment] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-115 */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-115
+             */
             /* coverity[misra_c_2012_rule_11_5_violation] */
-            pxSlotId = pkcs11configPKCS11_MALLOC( sizeof( CK_SLOT_ID ) * ( *pxSlotCount ) );
+            pxSlotId = pkcs11configPKCS11_MALLOC( sizeof( CK_SLOT_ID ) *
+                                                  ( *pxSlotCount ) );
 
             if( pxSlotId == NULL )
             {
@@ -131,7 +139,9 @@ CK_RV xGetSlotList( CK_SLOT_ID ** ppxSlotId,
 
     if( xResult == CKR_OK )
     {
-        xResult = pxFunctionList->C_GetSlotList( CK_TRUE, pxSlotId, pxSlotCount );
+        xResult = pxFunctionList->C_GetSlotList( CK_TRUE,
+                                                 pxSlotId,
+                                                 pxSlotCount );
     }
 
     if( ( xResult != CKR_OK ) && ( pxSlotId != NULL ) )
@@ -147,7 +157,9 @@ CK_RV xGetSlotList( CK_SLOT_ID ** ppxSlotId,
 /*-----------------------------------------------------------*/
 
 #ifdef CreateMutex
-    #undef CreateMutex /* This is a workaround because CreateMutex is redefined to CreateMutexW in synchapi.h in windows. :/ */
+    #undef CreateMutex /* This is a workaround because CreateMutex is         \
+                          redefined to CreateMutexW in synchapi.h in windows. \
+                          :/ */
 #endif
 
 /*-----------------------------------------------------------*/
@@ -168,7 +180,8 @@ CK_RV xInitializePKCS11( void )
     xResult = C_GetFunctionList( &pxFunctionList );
 
     /* Initialize the PKCS #11 module. */
-    if( ( xResult == CKR_OK ) && ( pxFunctionList != NULL ) && ( pxFunctionList->C_Initialize != NULL ) )
+    if( ( xResult == CKR_OK ) && ( pxFunctionList != NULL ) &&
+        ( pxFunctionList->C_Initialize != NULL ) )
     {
         xResult = pxFunctionList->C_Initialize( &xInitArgs );
     }
@@ -190,7 +203,9 @@ CK_RV xInitializePkcs11Token( void )
 
     xResult = C_GetFunctionList( &pxFunctionList );
 
-    if( ( pxFunctionList == NULL ) || ( pxFunctionList->C_GetTokenInfo == NULL ) || ( pxFunctionList->C_InitToken == NULL ) )
+    if( ( pxFunctionList == NULL ) ||
+        ( pxFunctionList->C_GetTokenInfo == NULL ) ||
+        ( pxFunctionList->C_InitToken == NULL ) )
     {
         xResult = CKR_FUNCTION_FAILED;
     }
@@ -200,18 +215,19 @@ CK_RV xInitializePkcs11Token( void )
         xResult = xInitializePKCS11();
     }
 
-    if( ( xResult == CKR_OK ) || ( xResult == CKR_CRYPTOKI_ALREADY_INITIALIZED ) )
+    if( ( xResult == CKR_OK ) ||
+        ( xResult == CKR_CRYPTOKI_ALREADY_INITIALIZED ) )
     {
         xResult = xGetSlotList( &pxSlotId, &xSlotCount );
     }
 
-    if( ( xResult == CKR_OK ) &&
-        ( NULL != pxFunctionList->C_GetTokenInfo ) &&
+    if( ( xResult == CKR_OK ) && ( NULL != pxFunctionList->C_GetTokenInfo ) &&
         ( NULL != pxFunctionList->C_InitToken ) )
     {
         /* Check if the token requires further initialization. */
         /* MISRA Ref 11.5.1 [Void pointer assignment] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-115 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-115 */
         /* coverity[misra_c_2012_rule_11_5_violation] */
         pxTokenInfo = pkcs11configPKCS11_MALLOC( sizeof( CK_TOKEN_INFO ) );
 
@@ -221,7 +237,8 @@ CK_RV xInitializePkcs11Token( void )
              * has multiple slots, insert logic for selecting an appropriate
              * slot here.
              */
-            xResult = pxFunctionList->C_GetTokenInfo( pxSlotId[ 0 ], pxTokenInfo );
+            xResult = pxFunctionList->C_GetTokenInfo( pxSlotId[ 0 ],
+                                                      pxTokenInfo );
         }
         else
         {
@@ -233,13 +250,16 @@ CK_RV xInitializePkcs11Token( void )
             xTokenFlags = pxTokenInfo->flags;
         }
 
-        if( ( CKR_OK == xResult ) && ( ( CKF_TOKEN_INITIALIZED & xTokenFlags ) != CKF_TOKEN_INITIALIZED ) )
+        if( ( CKR_OK == xResult ) &&
+            ( ( CKF_TOKEN_INITIALIZED & xTokenFlags ) !=
+              CKF_TOKEN_INITIALIZED ) )
         {
             /* Initialize the token if it is not already. */
-            xResult = pxFunctionList->C_InitToken( pxSlotId[ 0 ],
-                                                   ( CK_UTF8CHAR_PTR ) pkcs11configPKCS11_DEFAULT_USER_PIN,
-                                                   sizeof( pkcs11configPKCS11_DEFAULT_USER_PIN ) - 1UL,
-                                                   ( CK_UTF8CHAR_PTR ) "FreeRTOS" );
+            xResult = pxFunctionList->C_InitToken(
+                pxSlotId[ 0 ],
+                ( CK_UTF8CHAR_PTR ) pkcs11configPKCS11_DEFAULT_USER_PIN,
+                sizeof( pkcs11configPKCS11_DEFAULT_USER_PIN ) - 1UL,
+                ( CK_UTF8CHAR_PTR ) "FreeRTOS" );
         }
     }
 
@@ -302,12 +322,14 @@ CK_RV xInitializePkcs11Session( CK_SESSION_HANDLE * pxSession )
         pkcs11configPKCS11_FREE( pxSlotId );
     }
 
-    if( ( xResult == CKR_OK ) && ( pxFunctionList != NULL ) && ( pxFunctionList->C_Login != NULL ) )
+    if( ( xResult == CKR_OK ) && ( pxFunctionList != NULL ) &&
+        ( pxFunctionList->C_Login != NULL ) )
     {
-        xResult = pxFunctionList->C_Login( *pxSession,
-                                           CKU_USER,
-                                           ( CK_UTF8CHAR_PTR ) pkcs11configPKCS11_DEFAULT_USER_PIN,
-                                           sizeof( pkcs11configPKCS11_DEFAULT_USER_PIN ) - 1UL );
+        xResult = pxFunctionList->C_Login(
+            *pxSession,
+            CKU_USER,
+            ( CK_UTF8CHAR_PTR ) pkcs11configPKCS11_DEFAULT_USER_PIN,
+            sizeof( pkcs11configPKCS11_DEFAULT_USER_PIN ) - 1UL );
     }
 
     return xResult;
@@ -341,8 +363,10 @@ CK_RV xFindObjectWithLabelAndClass( CK_SESSION_HANDLE xSession,
 
         xResult = C_GetFunctionList( &pxFunctionList );
 
-        if( ( pxFunctionList == NULL ) || ( pxFunctionList->C_FindObjectsInit == NULL ) ||
-            ( pxFunctionList->C_FindObjects == NULL ) || ( pxFunctionList->C_FindObjectsFinal == NULL ) )
+        if( ( pxFunctionList == NULL ) ||
+            ( pxFunctionList->C_FindObjectsInit == NULL ) ||
+            ( pxFunctionList->C_FindObjects == NULL ) ||
+            ( pxFunctionList->C_FindObjectsFinal == NULL ) )
         {
             xResult = CKR_FUNCTION_FAILED;
         }
@@ -352,7 +376,11 @@ CK_RV xFindObjectWithLabelAndClass( CK_SESSION_HANDLE xSession,
      * on the search template provided by the caller. */
     if( CKR_OK == xResult )
     {
-        xResult = pxFunctionList->C_FindObjectsInit( xSession, xTemplate, sizeof( xTemplate ) / sizeof( CK_ATTRIBUTE ) );
+        xResult = pxFunctionList->C_FindObjectsInit( xSession,
+                                                     xTemplate,
+                                                     sizeof( xTemplate ) /
+                                                         sizeof(
+                                                             CK_ATTRIBUTE ) );
     }
 
     if( CKR_OK == xResult )
@@ -379,21 +407,27 @@ CK_RV xFindObjectWithLabelAndClass( CK_SESSION_HANDLE xSession,
 
 /*-----------------------------------------------------------*/
 
-CK_RV vAppendSHA256AlgorithmIdentifierSequence( const uint8_t * puc32ByteHashedMessage,
-                                                uint8_t * puc51ByteHashOidBuffer )
+CK_RV vAppendSHA256AlgorithmIdentifierSequence(
+    const uint8_t * puc32ByteHashedMessage,
+    uint8_t * puc51ByteHashOidBuffer )
 {
     CK_RV xResult = CKR_OK;
     const uint8_t pucOidSequence[] = pkcs11STUFF_APPENDED_TO_RSA_SIG;
 
-    if( ( puc32ByteHashedMessage == NULL ) || ( puc51ByteHashOidBuffer == NULL ) )
+    if( ( puc32ByteHashedMessage == NULL ) ||
+        ( puc51ByteHashOidBuffer == NULL ) )
     {
         xResult = CKR_ARGUMENTS_BAD;
     }
 
     if( xResult == CKR_OK )
     {
-        ( void ) memcpy( puc51ByteHashOidBuffer, pucOidSequence, sizeof( pucOidSequence ) );
-        ( void ) memcpy( &puc51ByteHashOidBuffer[ sizeof( pucOidSequence ) ], puc32ByteHashedMessage, 32 );
+        ( void ) memcpy( puc51ByteHashOidBuffer,
+                         pucOidSequence,
+                         sizeof( pucOidSequence ) );
+        ( void ) memcpy( &puc51ByteHashOidBuffer[ sizeof( pucOidSequence ) ],
+                         puc32ByteHashedMessage,
+                         32 );
     }
 
     return xResult;

@@ -4,22 +4,23 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 /**
@@ -30,27 +31,28 @@
  */
 
 /* PKCS #11 includes. */
+#include "core_pkcs11.h"
 #include "core_pkcs11_config.h"
 #include "core_pkcs11_config_defaults.h"
-#include "core_pkcs11.h"
 #include "core_pkcs11_pal.h"
 #include "core_pki_utils.h"
 
 /**
- *  @brief Declaring MBEDTLS_ALLOW_PRIVATE_ACCESS allows access to mbedtls "private" fields.
+ *  @brief Declaring MBEDTLS_ALLOW_PRIVATE_ACCESS allows access to mbedtls
+ * "private" fields.
  */
 #define MBEDTLS_ALLOW_PRIVATE_ACCESS
 
 /* mbedTLS includes. */
-#include "mbedtls/pk.h"
-#include "mbedtls/x509_crt.h"
+#include "mbedtls/cmac.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/entropy.h"
-#include "mbedtls/sha256.h"
-#include "mbedtls/cmac.h"
-#include "mbedtls/platform.h"
-#include "mbedtls/threading.h"
 #include "mbedtls/error.h"
+#include "mbedtls/pk.h"
+#include "mbedtls/platform.h"
+#include "mbedtls/sha256.h"
+#include "mbedtls/threading.h"
+#include "mbedtls/x509_crt.h"
 
 /* C runtime includes. */
 #include <string.h>
@@ -73,29 +75,33 @@
  * @brief Represents string to be logged when mbedTLS returned error
  * does not contain a high-level code.
  */
-    static const char * pNoHighLevelMbedTlsCodeStr = "<No-High-Level-Code>";
+static const char * pNoHighLevelMbedTlsCodeStr = "<No-High-Level-Code>";
 
 /**
  * @brief Represents string to be logged when mbedTLS returned error
  * does not contain a low-level code.
  */
-    static const char * pNoLowLevelMbedTlsCodeStr = "<No-Low-Level-Code>";
+static const char * pNoLowLevelMbedTlsCodeStr = "<No-Low-Level-Code>";
 
 /**
- * @brief Utility for converting the high-level code in an mbedTLS error to string,
- * if the code-contains a high-level code; otherwise, using a default string.
+ * @brief Utility for converting the high-level code in an mbedTLS error to
+ * string, if the code-contains a high-level code; otherwise, using a default
+ * string.
  */
-    #define mbedtlsHighLevelCodeOrDefault( mbedTlsCode )   \
-    ( mbedtls_high_level_strerr( mbedTlsCode ) != NULL ) ? \
-    mbedtls_high_level_strerr( mbedTlsCode ) : pNoHighLevelMbedTlsCodeStr
+    #define mbedtlsHighLevelCodeOrDefault( mbedTlsCode )     \
+        ( mbedtls_high_level_strerr( mbedTlsCode ) != NULL ) \
+            ? mbedtls_high_level_strerr( mbedTlsCode )       \
+            : pNoHighLevelMbedTlsCodeStr
 
 /**
- * @brief Utility for converting the level-level code in an mbedTLS error to string,
- * if the code-contains a level-level code; otherwise, using a default string.
+ * @brief Utility for converting the level-level code in an mbedTLS error to
+ * string, if the code-contains a level-level code; otherwise, using a default
+ * string.
  */
-    #define mbedtlsLowLevelCodeOrDefault( mbedTlsCode )   \
-    ( mbedtls_low_level_strerr( mbedTlsCode ) != NULL ) ? \
-    mbedtls_low_level_strerr( mbedTlsCode ) : pNoLowLevelMbedTlsCodeStr
+    #define mbedtlsLowLevelCodeOrDefault( mbedTlsCode )     \
+        ( mbedtls_low_level_strerr( mbedTlsCode ) != NULL ) \
+            ? mbedtls_low_level_strerr( mbedTlsCode )       \
+            : pNoLowLevelMbedTlsCodeStr
 
 #endif /* ifndef DISABLE_LOGGING */
 
@@ -103,50 +109,49 @@
  * @ingroup pkcs11_macros
  * @brief Delay to wait on acquiring a mutex, in ms.
  */
-#define pkcs11MUTEX_WAIT_MS                     ( pdMS_TO_TICKS( 5000U ) )
+#define pkcs11MUTEX_WAIT_MS                  ( pdMS_TO_TICKS( 5000U ) )
 
 /**
  * @ingroup pkcs11_macros
  * @brief Indicates that no PKCS #11 operation is underway for given session.
  */
-#define pkcs11NO_OPERATION                      ( ( CK_MECHANISM_TYPE ) 0xFFFFFFFFUL )
+#define pkcs11NO_OPERATION                   ( ( CK_MECHANISM_TYPE ) 0xFFFFFFFFUL )
 
 /**
  * @ingroup pkcs11_macros
  * @brief size of a prime256v1 EC private key in bytes, when encoded in DER.
  */
-#define pkcs11_PRIVATE_EC_PRIME_256_DER_SIZE    160
+#define pkcs11_PRIVATE_EC_PRIME_256_DER_SIZE 160
 
 /**
  * @ingroup pkcs11_macros
  * @brief size of a prime256v1 EC public key in bytes, when encoded in DER.
  */
-#define pkcs11_PUBLIC_EC_PRIME_256_DER_SIZE     100
+#define pkcs11_PUBLIC_EC_PRIME_256_DER_SIZE  100
 
 /**
  * @ingroup pkcs11_macros
  * @brief size of a 2048 bit RSA public key in bytes, when encoded in DER.
  */
-#define pkcs11_PUBLIC_RSA_2048_DER_SIZE         300
+#define pkcs11_PUBLIC_RSA_2048_DER_SIZE      300
 
 /**
  * @ingroup pkcs11_macros
  * @brief size of a 2048 bit RSA private key in bytes, in DER encoding.
  */
-#define pkcs11_PRIVATE_RSA_2048_DER_SIZE        1200
+#define pkcs11_PRIVATE_RSA_2048_DER_SIZE     1200
 
 /**
  * @ingroup pkcs11_macros
  * @brief Max size of an EC public key in bytes, in DER encoding.
  */
-#define pkcs11_MAX_EC_PUBLIC_KEY_DER_SIZE       pkcs11_PUBLIC_EC_PRIME_256_DER_SIZE
-
+#define pkcs11_MAX_EC_PUBLIC_KEY_DER_SIZE    pkcs11_PUBLIC_EC_PRIME_256_DER_SIZE
 
 /**
  * @ingroup pkcs11_macros
  * @brief Max size of an EC private key in bytes, in DER encoding.
  */
-#define pkcs11_MAX_EC_PRIVATE_KEY_DER_SIZE    pkcs11_PRIVATE_EC_PRIME_256_DER_SIZE
+#define pkcs11_MAX_EC_PRIVATE_KEY_DER_SIZE   pkcs11_PRIVATE_EC_PRIME_256_DER_SIZE
 
 /**
  * @ingroup pkcs11_macros
@@ -168,7 +173,7 @@
  * 32 points of 2 bytes each + 1 point length byte, 1 length byte, and
  * 1 type (uncompressed) byte
  */
-#define pkcs11EC_POINT_LENGTH                 ( ( 32UL * 2UL ) + 1UL + 1UL + 1UL )
+#define pkcs11EC_POINT_LENGTH                ( ( 32UL * 2UL ) + 1UL + 1UL + 1UL )
 
 /**
  * @ingroup pkcs11_macros
@@ -177,8 +182,7 @@
  *
  * @note The largest RSA public key is used because EC keys are smaller.
  */
-#define pkcs11_MAX_PUBLIC_KEY_DER_SIZE        pkcs11_PUBLIC_RSA_2048_DER_SIZE
-
+#define pkcs11_MAX_PUBLIC_KEY_DER_SIZE       pkcs11_PUBLIC_RSA_2048_DER_SIZE
 
 /**
  * @ingroup pkcs11_macros
@@ -191,61 +195,67 @@
  * @note The largest RSA private key is used because EC keys are smaller and
  * the RSA public key is smaller.
  */
-#define pkcs11_MAX_PRIVATE_KEY_DER_SIZE    pkcs11_PRIVATE_RSA_2048_DER_SIZE
+#define pkcs11_MAX_PRIVATE_KEY_DER_SIZE      pkcs11_PRIVATE_RSA_2048_DER_SIZE
 
 /**
  * @ingroup pkcs11_macros
- * @brief The size of the buffer malloc'ed for the exported public key in C_GenerateKeyPair.
+ * @brief The size of the buffer malloc'ed for the exported public key in
+ * C_GenerateKeyPair.
  */
-#define pkcs11KEY_GEN_MAX_DER_SIZE         200
+#define pkcs11KEY_GEN_MAX_DER_SIZE           200
 
 /**
  * @ingroup pkcs11_macros
  * @brief The slot ID to be returned by this PKCS #11 implementation.
  *
- * @note that this implementation does not have a concept of "slots" so this number is arbitrary.
+ * @note that this implementation does not have a concept of "slots" so this
+ * number is arbitrary.
  */
-#define pkcs11SLOT_ID                      1
+#define pkcs11SLOT_ID                        1
 
 /**
  * @ingroup pkcs11_macros
  * @brief Private defines for checking that attribute templates are complete.
  */
-#define LABEL_IN_TEMPLATE                  ( 1U )      /**< Bit set for label in template. */
-#define PRIVATE_IN_TEMPLATE                ( 1U << 1 ) /**< Bit set for private key in in template. */
-#define SIGN_IN_TEMPLATE                   ( 1U << 2 ) /**< Bit set for sign in template. */
-#define EC_PARAMS_IN_TEMPLATE              ( 1U << 3 ) /**< Bit set for EC params in template. */
-#define VERIFY_IN_TEMPLATE                 ( 1U << 4 ) /**< Bit set for verify in template. */
+#define LABEL_IN_TEMPLATE                    ( 1U ) /**< Bit set for label in template. */
+#define PRIVATE_IN_TEMPLATE \
+    ( 1U << 1 ) /**< Bit set for private key in in template. */
+#define SIGN_IN_TEMPLATE ( 1U << 2 ) /**< Bit set for sign in template. */
+#define EC_PARAMS_IN_TEMPLATE \
+    ( 1U << 3 ) /**< Bit set for EC params in template. */
+#define VERIFY_IN_TEMPLATE          ( 1U << 4 ) /**< Bit set for verify in template. */
 
 /**
  * @ingroup pkcs11_macros
  * @brief Macro to signify an invalid PKCS #11 key type.
  */
-#define PKCS11_INVALID_KEY_TYPE            ( ( CK_KEY_TYPE ) 0xFFFFFFFFUL )
+#define PKCS11_INVALID_KEY_TYPE     ( ( CK_KEY_TYPE ) 0xFFFFFFFFUL )
 
 /**
  * @ingroup pkcs11_macros
  * @brief Private define for minimum SHA256-HMAC key size.
  */
-#define PKCS11_SHA256_HMAC_MIN_SIZE        ( 32UL )
+#define PKCS11_SHA256_HMAC_MIN_SIZE ( 32UL )
 
 /**
  * @ingroup pkcs11_macros
  * @brief Private define for minimum AES-CMAC key size, in bytes.
  */
-#define PKCS11_AES_CMAC_MIN_SIZE           ( 16UL )
+#define PKCS11_AES_CMAC_MIN_SIZE    ( 16UL )
 
 /**
  * @ingroup pkcs11_macros
- * @brief Private define to inform mbedtls MD module to use an HMAC for the MD context.
+ * @brief Private define to inform mbedtls MD module to use an HMAC for the MD
+ * context.
  */
-#define PKCS11_USING_HMAC                  ( 1 )
+#define PKCS11_USING_HMAC           ( 1 )
 
 /**
- * @brief Define the MBEDTLS_VERSION_NUMBER as 0 if it is not defined, done for MISRA rule 20.9
+ * @brief Define the MBEDTLS_VERSION_NUMBER as 0 if it is not defined, done for
+ * MISRA rule 20.9
  */
 #ifndef MBEDTLS_VERSION_NUMBER
-    #define MBEDTLS_VERSION_NUMBER    0
+    #define MBEDTLS_VERSION_NUMBER 0
 #endif
 
 /**
@@ -256,24 +266,29 @@
  */
 typedef struct P11Object_t
 {
-    CK_OBJECT_HANDLE xHandle;                           /**< @brief The "PAL Handle". */
-    CK_ULONG xLabelSize;                                /**< @brief Size of label. */
-    CK_BYTE xLabel[ pkcs11configMAX_LABEL_LENGTH + 1 ]; /**< @brief Plus 1 for the null terminator. */
+    CK_OBJECT_HANDLE xHandle; /**< @brief The "PAL Handle". */
+    CK_ULONG xLabelSize;      /**< @brief Size of label. */
+    CK_BYTE xLabel[ pkcs11configMAX_LABEL_LENGTH + 1 ]; /**< @brief Plus 1 for
+                                                           the null terminator.
+                                                         */
 } P11Object_t;
 
 /**
  * @ingroup pkcs11_datatypes
  * @brief PKCS #11 object container list.
  *
- * This structure helps the core_pkcs11_mbedtls.c maintain a mapping of all objects in one place.
- * Because some objects exist in device NVM and must be called by their "PAL Handles", and other
- * objects do not have designated NVM storage locations, the ObjectList maintains a list
- * of what object handles are available.
+ * This structure helps the core_pkcs11_mbedtls.c maintain a mapping of all
+ * objects in one place. Because some objects exist in device NVM and must be
+ * called by their "PAL Handles", and other objects do not have designated NVM
+ * storage locations, the ObjectList maintains a list of what object handles are
+ * available.
  */
 typedef struct P11ObjectList_t
 {
-    mbedtls_threading_mutex_t xMutex;                    /**< @brief Mutex that protects write operations to the xObjects array. */
-    P11Object_t xObjects[ pkcs11configMAX_NUM_OBJECTS ]; /**< @brief List of PKCS #11 objects. */
+    mbedtls_threading_mutex_t xMutex; /**< @brief Mutex that protects write
+                                         operations to the xObjects array. */
+    P11Object_t xObjects[ pkcs11configMAX_NUM_OBJECTS ]; /**< @brief List of
+                                                            PKCS #11 objects. */
 } P11ObjectList_t;
 
 /**
@@ -282,14 +297,22 @@ typedef struct P11ObjectList_t
  */
 typedef struct P11Struct_t
 {
-    CK_BBOOL xIsInitialized;                     /**< @brief Indicates whether PKCS #11 module has been initialized with a call to C_Initialize. */
-    mbedtls_ctr_drbg_context xMbedDrbgCtx;       /**< @brief CTR-DRBG context for PKCS #11 module - used to generate pseudo-random numbers. */
-    mbedtls_entropy_context xMbedEntropyContext; /**< @brief Entropy context for PKCS #11 module - used to collect entropy for RNG. */
-    mbedtls_threading_mutex_t xSessionMutex;     /**< @brief Mutex that protects write operations to the pxSession array. */
-    P11ObjectList_t xObjectList;                 /**< @brief List of PKCS #11 objects that have been found/created since module initialization.
-                                                  *         The array position indicates the "App Handle"  */
+    CK_BBOOL xIsInitialized; /**< @brief Indicates whether PKCS #11 module has
+                                been initialized with a call to C_Initialize. */
+    mbedtls_ctr_drbg_context xMbedDrbgCtx; /**< @brief CTR-DRBG context for PKCS
+                                              #11 module - used to generate
+                                              pseudo-random numbers. */
+    mbedtls_entropy_context xMbedEntropyContext; /**< @brief Entropy context for
+                                                    PKCS #11 module - used to
+                                                    collect entropy for RNG. */
+    mbedtls_threading_mutex_t xSessionMutex;     /**< @brief Mutex that protects
+                                                    write operations to the
+                                                    pxSession array. */
+    P11ObjectList_t xObjectList; /**< @brief List of PKCS #11 objects that have
+                                  * been found/created since module
+                                  * initialization. The array position indicates
+                                  * the "App Handle"  */
 } P11Struct_t;
-
 
 /**
  * @ingroup pkcs11_datatypes
@@ -297,24 +320,50 @@ typedef struct P11Struct_t
  */
 typedef struct P11Session
 {
-    CK_ULONG ulState;                            /**< @brief Stores the session flags. */
-    CK_BBOOL xOpened;                            /**< @brief Set to CK_TRUE upon opening PKCS #11 session. */
-    CK_MECHANISM_TYPE xOperationDigestMechanism; /**< @brief Indicates if a digest operation is in progress. */
-    CK_BYTE * pxFindObjectLabel;                 /**< @brief Pointer to the label for the search in progress. Should be NULL if no search in progress. */
-    CK_ULONG xFindObjectLabelLen;                /**< @brief Size of current search label. */
-    CK_MECHANISM_TYPE xOperationVerifyMechanism; /**< @brief The mechanism of verify operation in progress. Set during C_VerifyInit. */
-    mbedtls_threading_mutex_t xVerifyMutex;      /**< @brief Protects the verification key from being modified while in use. */
-    CK_OBJECT_HANDLE xVerifyKeyHandle;           /**< @brief Object handle to the verification key. */
-    mbedtls_pk_context xVerifyKey;               /**< @brief Verification key.  Set during C_VerifyInit. */
-    CK_MECHANISM_TYPE xOperationSignMechanism;   /**< @brief Mechanism of the sign operation in progress. Set during C_SignInit. */
-    mbedtls_threading_mutex_t xSignMutex;        /**< @brief Protects the signing key from being modified while in use. */
-    CK_OBJECT_HANDLE xSignKeyHandle;             /**< @brief Object handle to the signing key. */
-    mbedtls_pk_context xSignKey;                 /**< @brief Signing key.  Set during C_SignInit. */
-    mbedtls_sha256_context xSHA256Context;       /**< @brief Context for in progress digest operation. */
-    CK_OBJECT_HANDLE xHMACKeyHandle;             /**< @brief Object handle to the HMAC key. */
-    mbedtls_md_context_t xHMACSecretContext;     /**< @brief Context for in progress HMAC operation. Set during C_SignInit or C_VerifyInit. */
-    CK_OBJECT_HANDLE xCMACKeyHandle;             /**< @brief Object handle to the CMAC key. */
-    mbedtls_cipher_context_t xCMACSecretContext; /**< @brief Context for in progress CMAC operation. Set during C_SignInit or C_VerifyInit. */
+    CK_ULONG ulState; /**< @brief Stores the session flags. */
+    CK_BBOOL xOpened; /**< @brief Set to CK_TRUE upon opening PKCS #11 session.
+                       */
+    CK_MECHANISM_TYPE xOperationDigestMechanism; /**< @brief Indicates if a
+                                                    digest operation is in
+                                                    progress. */
+    CK_BYTE * pxFindObjectLabel; /**< @brief Pointer to the label for the search
+                                    in progress. Should be NULL if no search in
+                                    progress. */
+    CK_ULONG xFindObjectLabelLen; /**< @brief Size of current search label. */
+    CK_MECHANISM_TYPE xOperationVerifyMechanism; /**< @brief The mechanism of
+                                                    verify operation in
+                                                    progress. Set during
+                                                    C_VerifyInit. */
+    mbedtls_threading_mutex_t xVerifyMutex;      /**< @brief Protects the
+                                                    verification key from being
+                                                    modified while in use. */
+    CK_OBJECT_HANDLE xVerifyKeyHandle; /**< @brief Object handle to the
+                                          verification key. */
+    mbedtls_pk_context xVerifyKey;     /**< @brief Verification key.  Set during
+                                          C_VerifyInit. */
+    CK_MECHANISM_TYPE xOperationSignMechanism; /**< @brief Mechanism of the sign
+                                                  operation in progress. Set
+                                                  during C_SignInit. */
+    mbedtls_threading_mutex_t xSignMutex; /**< @brief Protects the signing key
+                                             from being modified while in use.
+                                           */
+    CK_OBJECT_HANDLE xSignKeyHandle; /**< @brief Object handle to the signing
+                                        key. */
+    mbedtls_pk_context xSignKey;     /**< @brief Signing key.  Set during
+                                        C_SignInit. */
+    mbedtls_sha256_context xSHA256Context; /**< @brief Context for in progress
+                                              digest operation. */
+    CK_OBJECT_HANDLE xHMACKeyHandle; /**< @brief Object handle to the HMAC key.
+                                      */
+    mbedtls_md_context_t xHMACSecretContext; /**< @brief Context for in progress
+                                                HMAC operation. Set during
+                                                C_SignInit or C_VerifyInit. */
+    CK_OBJECT_HANDLE xCMACKeyHandle; /**< @brief Object handle to the CMAC key.
+                                      */
+    mbedtls_cipher_context_t xCMACSecretContext; /**< @brief Context for in
+                                                    progress CMAC operation. Set
+                                                    during C_SignInit or
+                                                    C_VerifyInit. */
 } P11Session_t;
 
 /*-----------------------------------------------------------*/
@@ -338,34 +387,42 @@ static CK_RV prvCheckValidSessionAndModule( const P11Session_t * pxSession )
     CK_RV xResult = CKR_OK;
 
     /** MISRA Rule 10.5 - Cannot cast from unsigned to signed.
-     * The rule 10.5 is violated because type of the boolean macros defined by PKCS #11
-     * are 0 and 1, which results in a signed integer, meanwhile the underlying
-     * type of CK_BBOOL is an unsigned char.
+     * The rule 10.5 is violated because type of the boolean macros defined by
+     * PKCS #11 are 0 and 1, which results in a signed integer, meanwhile the
+     * underlying type of CK_BBOOL is an unsigned char.
      *
-     * This means that our implementation conforms to the exception provided by MISRA
-     * To quote MISRA: "An integer constant expression with the value 0 or 1 of either signedness
-     * may be cast to a type which is defined as essentially Boolean.
-     * This allows the implementation of non-C99 Boolean models."
+     * This means that our implementation conforms to the exception provided by
+     * MISRA To quote MISRA: "An integer constant expression with the value 0 or
+     * 1 of either signedness may be cast to a type which is defined as
+     * essentially Boolean. This allows the implementation of non-C99 Boolean
+     * models."
      */
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     if( xP11Context.xIsInitialized == ( CK_BBOOL ) CK_FALSE )
     {
-        LogDebug( ( "Could not get a valid session. PKCS #11 was not initialized since xP11Context.xIsInitialized was CK_FALSE." ) );
+        LogDebug(
+            ( "Could not get a valid session. PKCS #11 was not initialized "
+              "since xP11Context.xIsInitialized was CK_FALSE." ) );
         xResult = CKR_CRYPTOKI_NOT_INITIALIZED;
     }
     else if( pxSession == NULL )
     {
-        LogDebug( ( "Could not get a valid session. PKCS #11 session handle pSession was NULL." ) );
+        LogDebug( ( "Could not get a valid session. PKCS #11 session handle "
+                    "pSession was NULL." ) );
         xResult = CKR_SESSION_HANDLE_INVALID;
     }
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     else if( pxSession->xOpened == ( CK_BBOOL ) CK_FALSE )
     {
-        LogDebug( ( "Could not get a valid session. PKCS #11 session handle was not initialized with a previous call to C_OpenSession." ) );
+        LogDebug(
+            ( "Could not get a valid session. PKCS #11 session handle was not "
+              "initialized with a previous call to C_OpenSession." ) );
         xResult = CKR_SESSION_HANDLE_INVALID;
     }
     else
@@ -377,7 +434,8 @@ static CK_RV prvCheckValidSessionAndModule( const P11Session_t * pxSession )
 }
 
 /**
- * @brief Maps an opaque caller session handle into its internal state structure.
+ * @brief Maps an opaque caller session handle into its internal state
+ * structure.
  */
 static P11Session_t * prvSessionPointerFromHandle( CK_SESSION_HANDLE xSession )
 {
@@ -390,7 +448,10 @@ static P11Session_t * prvSessionPointerFromHandle( CK_SESSION_HANDLE xSession )
     }
     else
     {
-        LogDebug( ( "Could not convert from CK_SESSION_HANDLE to P11Session_t pointer. Session handle was out of the valid range. Session handle was: %lu.", ( unsigned long int ) xSession ) );
+        LogDebug( ( "Could not convert from CK_SESSION_HANDLE to P11Session_t "
+                    "pointer. Session handle was out of the valid range. "
+                    "Session handle was: %lu.",
+                    ( unsigned long int ) xSession ) );
     }
 
     return pxSession;
@@ -402,35 +463,43 @@ static P11Session_t * prvSessionPointerFromHandle( CK_SESSION_HANDLE xSession )
 static CK_BBOOL prvOperationActive( const P11Session_t * pxSession )
 {
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     CK_BBOOL xResult = ( CK_BBOOL ) CK_FALSE;
 
-    if( ( pxSession->xOperationDigestMechanism < pkcs11NO_OPERATION ) == CK_TRUE )
+    if( ( pxSession->xOperationDigestMechanism < pkcs11NO_OPERATION ) ==
+        CK_TRUE )
     {
         /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
         xResult = ( CK_BBOOL ) CK_TRUE;
     }
-    else if( ( pxSession->xOperationSignMechanism < pkcs11NO_OPERATION ) == CK_TRUE )
+    else if( ( pxSession->xOperationSignMechanism < pkcs11NO_OPERATION ) ==
+             CK_TRUE )
     {
         /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
         xResult = ( CK_BBOOL ) CK_TRUE;
     }
-    else if( ( pxSession->xOperationVerifyMechanism < pkcs11NO_OPERATION ) == CK_TRUE )
+    else if( ( pxSession->xOperationVerifyMechanism < pkcs11NO_OPERATION ) ==
+             CK_TRUE )
     {
         /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
         xResult = ( CK_BBOOL ) CK_TRUE;
     }
     else if( pxSession->pxFindObjectLabel != NULL )
     {
         /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
         xResult = ( CK_BBOOL ) CK_TRUE;
     }
@@ -450,7 +519,8 @@ static CK_RV prvMbedTLS_Initialize( void )
     CK_RV xResult = CKR_OK;
 
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     int32_t lMbedTLSResult = 0;
 
@@ -471,7 +541,8 @@ static CK_RV prvMbedTLS_Initialize( void )
 
     if( 0 != lMbedTLSResult )
     {
-        LogError( ( "Could not initialize PKCS #11. Failed to seed the DRBG: mbed TLS error = %s : %s.",
+        LogError( ( "Could not initialize PKCS #11. Failed to seed the DRBG: "
+                    "mbed TLS error = %s : %s.",
                     mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
                     mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
         xResult = CKR_FUNCTION_FAILED;
@@ -479,7 +550,8 @@ static CK_RV prvMbedTLS_Initialize( void )
     else
     {
         /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
         xP11Context.xIsInitialized = ( CK_BBOOL ) CK_TRUE;
         LogDebug( ( "PKCS #11 module was successfully initialized." ) );
@@ -505,7 +577,8 @@ static CK_RV prvGetObjectClass( const CK_ATTRIBUTE * pxTemplate,
             ( pxTemplate[ ulIndex ].ulValueLen == sizeof( CK_OBJECT_CLASS ) ) )
         {
             LogDebug( ( "Successfully found object class attribute." ) );
-            ( void ) memcpy( pxClass, pxTemplate[ ulIndex ].pValue,
+            ( void ) memcpy( pxClass,
+                             pxTemplate[ ulIndex ].pValue,
                              sizeof( CK_OBJECT_CLASS ) );
             xResult = CKR_OK;
             break;
@@ -526,18 +599,19 @@ static CK_RV prvCertAttParse( CK_ATTRIBUTE * pxAttribute,
 {
     CK_RV xResult = CKR_OK;
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     CK_BBOOL xBool = ( CK_BBOOL ) CK_FALSE;
 
     switch( pxAttribute->type )
     {
-        case ( CKA_VALUE ):
+        case( CKA_VALUE ):
             *ppxCertificateValue = pxAttribute->pValue;
             *pxCertificateLength = pxAttribute->ulValueLen;
             break;
 
-        case ( CKA_LABEL ):
+        case( CKA_LABEL ):
 
             if( pxAttribute->ulValueLen <= pkcs11configMAX_LABEL_LENGTH )
             {
@@ -545,41 +619,50 @@ static CK_RV prvCertAttParse( CK_ATTRIBUTE * pxAttribute,
             }
             else
             {
-                LogError( ( "Failed parsing certificate template. Label length "
-                            "was not in the valid range. Found %lu and expected %lu. "
-                            "Consider updating pkcs11configMAX_LABEL_LENGTH.",
-                            ( unsigned long int ) pxAttribute->ulValueLen,
-                            ( unsigned long int ) pkcs11configMAX_LABEL_LENGTH ) );
+                LogError(
+                    ( "Failed parsing certificate template. Label length "
+                      "was not in the valid range. Found %lu and expected %lu. "
+                      "Consider updating pkcs11configMAX_LABEL_LENGTH.",
+                      ( unsigned long int ) pxAttribute->ulValueLen,
+                      ( unsigned long int ) pkcs11configMAX_LABEL_LENGTH ) );
                 xResult = CKR_DATA_LEN_RANGE;
             }
 
             break;
 
-        case ( CKA_CERTIFICATE_TYPE ):
+        case( CKA_CERTIFICATE_TYPE ):
 
             if( pxAttribute->ulValueLen == sizeof( CK_CERTIFICATE_TYPE ) )
             {
-                ( void ) memcpy( pxCertificateType, pxAttribute->pValue, sizeof( CK_CERTIFICATE_TYPE ) );
+                ( void ) memcpy( pxCertificateType,
+                                 pxAttribute->pValue,
+                                 sizeof( CK_CERTIFICATE_TYPE ) );
             }
 
             if( *pxCertificateType != CKC_X_509 )
             {
-                LogError( ( "Failed parsing certificate template. Certificate type was invalid. "
-                            "Expected CKC_X_509, but found 0x%0lX.", ( unsigned long int ) *pxCertificateType ) );
+                LogError( ( "Failed parsing certificate template. Certificate "
+                            "type was invalid. "
+                            "Expected CKC_X_509, but found 0x%0lX.",
+                            ( unsigned long int ) *pxCertificateType ) );
                 xResult = CKR_ATTRIBUTE_VALUE_INVALID;
             }
 
             break;
 
-        case ( CKA_TOKEN ):
+        case( CKA_TOKEN ):
 
             if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
             {
-                ( void ) memcpy( &xBool, pxAttribute->pValue, sizeof( CK_BBOOL ) );
+                ( void ) memcpy( &xBool,
+                                 pxAttribute->pValue,
+                                 sizeof( CK_BBOOL ) );
             }
 
             /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
             /* coverity[misra_c_2012_rule_10_5_violation] */
             if( xBool != ( CK_BBOOL ) CK_TRUE )
             {
@@ -588,14 +671,17 @@ static CK_RV prvCertAttParse( CK_ATTRIBUTE * pxAttribute,
 
             break;
 
-        case ( CKA_CLASS ):
-        case ( CKA_SUBJECT ):
-            /* Do nothing.  This was already parsed out of the template previously. */
+        case( CKA_CLASS ):
+        case( CKA_SUBJECT ):
+            /* Do nothing.  This was already parsed out of the template
+             * previously. */
             break;
 
         default:
-            LogError( ( "Failed parsing certificate template. Received an unknown "
-                        "template type with value 0x%0lX.", ( unsigned long int ) pxAttribute->type ) );
+            LogError(
+                ( "Failed parsing certificate template. Received an unknown "
+                  "template type with value 0x%0lX.",
+                  ( unsigned long int ) pxAttribute->type ) );
             xResult = CKR_ATTRIBUTE_TYPE_INVALID;
             break;
     }
@@ -609,7 +695,8 @@ static CK_RV prvCertAttParse( CK_ATTRIBUTE * pxAttribute,
 static CK_RV prvRsaPrivKeyAttParse( const CK_ATTRIBUTE * pxAttribute )
 {
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     CK_BBOOL xBool = ( CK_BBOOL ) CK_FALSE;
     CK_RV xResult = CKR_OK;
@@ -618,16 +705,20 @@ static CK_RV prvRsaPrivKeyAttParse( const CK_ATTRIBUTE * pxAttribute )
     {
         if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
         {
-            ( void ) memcpy( &xBool, pxAttribute->pValue, pxAttribute->ulValueLen );
+            ( void ) memcpy( &xBool,
+                             pxAttribute->pValue,
+                             pxAttribute->ulValueLen );
         }
 
         /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
         if( xBool == ( CK_BBOOL ) CK_FALSE )
         {
             xResult = CKR_ATTRIBUTE_VALUE_INVALID;
-            LogError( ( "Failed to parse RSA private key. Expected sign permissions to be supported." ) );
+            LogError( ( "Failed to parse RSA private key. Expected sign "
+                        "permissions to be supported." ) );
         }
     }
 
@@ -640,7 +731,8 @@ static CK_RV prvRsaPrivKeyAttParse( const CK_ATTRIBUTE * pxAttribute )
 static CK_RV prvRsaPubKeyAttParse( const CK_ATTRIBUTE * pxAttribute )
 {
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     CK_BBOOL xBool = ( CK_BBOOL ) CK_FALSE;
     CK_RV xResult = CKR_OK;
@@ -649,25 +741,29 @@ static CK_RV prvRsaPubKeyAttParse( const CK_ATTRIBUTE * pxAttribute )
     {
         if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
         {
-            ( void ) memcpy( &xBool, pxAttribute->pValue, pxAttribute->ulValueLen );
+            ( void ) memcpy( &xBool,
+                             pxAttribute->pValue,
+                             pxAttribute->ulValueLen );
         }
 
         /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
         if( xBool == ( CK_BBOOL ) CK_FALSE )
         {
             xResult = CKR_ATTRIBUTE_VALUE_INVALID;
-            LogError( ( "Failed to parse RSA public key. Expected verify permissions to be supported." ) );
+            LogError( ( "Failed to parse RSA public key. Expected verify "
+                        "permissions to be supported." ) );
         }
     }
 
     return xResult;
 }
 
-
 /**
- * @brief Parses attribute values for an RSA key an puts them in the mbed TLS context.
+ * @brief Parses attribute values for an RSA key an puts them in the mbed TLS
+ * context.
  */
 static CK_RV prvRsaContextParse( const CK_ATTRIBUTE * pxAttribute,
                                  mbedtls_rsa_context * pxRsaContext )
@@ -677,74 +773,112 @@ static CK_RV prvRsaContextParse( const CK_ATTRIBUTE * pxAttribute,
 
     switch( pxAttribute->type )
     {
-        case ( CKA_MODULUS ):
+        case( CKA_MODULUS ):
             lMbedTLSResult = mbedtls_rsa_import_raw( pxRsaContext,
-                                                     pxAttribute->pValue, pxAttribute->ulValueLen, /* N */
-                                                     NULL, 0,                                      /* P */
-                                                     NULL, 0,                                      /* Q */
-                                                     NULL, 0,                                      /* D */
-                                                     NULL, 0 );                                    /* E */
+                                                     pxAttribute->pValue,
+                                                     pxAttribute
+                                                         ->ulValueLen, /* N */
+                                                     NULL,
+                                                     0, /* P */
+                                                     NULL,
+                                                     0, /* Q */
+                                                     NULL,
+                                                     0, /* D */
+                                                     NULL,
+                                                     0 ); /* E */
             break;
 
-        case ( CKA_PUBLIC_EXPONENT ):
+        case( CKA_PUBLIC_EXPONENT ):
             lMbedTLSResult = mbedtls_rsa_import_raw( pxRsaContext,
-                                                     NULL, 0,                                        /* N */
-                                                     NULL, 0,                                        /* P */
-                                                     NULL, 0,                                        /* Q */
-                                                     NULL, 0,                                        /* D */
-                                                     pxAttribute->pValue, pxAttribute->ulValueLen ); /* E */
+                                                     NULL,
+                                                     0, /* N */
+                                                     NULL,
+                                                     0, /* P */
+                                                     NULL,
+                                                     0, /* Q */
+                                                     NULL,
+                                                     0, /* D */
+                                                     pxAttribute->pValue,
+                                                     pxAttribute
+                                                         ->ulValueLen ); /* E */
             break;
 
-        case ( CKA_PRIME_1 ):
+        case( CKA_PRIME_1 ):
             lMbedTLSResult = mbedtls_rsa_import_raw( pxRsaContext,
-                                                     NULL, 0,                                      /* N */
-                                                     pxAttribute->pValue, pxAttribute->ulValueLen, /* P */
-                                                     NULL, 0,                                      /* Q */
-                                                     NULL, 0,                                      /* D */
-                                                     NULL, 0 );                                    /* E */
+                                                     NULL,
+                                                     0, /* N */
+                                                     pxAttribute->pValue,
+                                                     pxAttribute
+                                                         ->ulValueLen, /* P */
+                                                     NULL,
+                                                     0, /* Q */
+                                                     NULL,
+                                                     0, /* D */
+                                                     NULL,
+                                                     0 ); /* E */
             break;
 
-        case ( CKA_PRIME_2 ):
+        case( CKA_PRIME_2 ):
             lMbedTLSResult = mbedtls_rsa_import_raw( pxRsaContext,
-                                                     NULL, 0,                                      /* N */
-                                                     NULL, 0,                                      /* P */
-                                                     pxAttribute->pValue, pxAttribute->ulValueLen, /* Q */
-                                                     NULL, 0,                                      /* D */
-                                                     NULL, 0 );                                    /* E */
+                                                     NULL,
+                                                     0, /* N */
+                                                     NULL,
+                                                     0, /* P */
+                                                     pxAttribute->pValue,
+                                                     pxAttribute
+                                                         ->ulValueLen, /* Q */
+                                                     NULL,
+                                                     0, /* D */
+                                                     NULL,
+                                                     0 ); /* E */
             break;
 
-        case ( CKA_PRIVATE_EXPONENT ):
+        case( CKA_PRIVATE_EXPONENT ):
             lMbedTLSResult = mbedtls_rsa_import_raw( pxRsaContext,
-                                                     NULL, 0,                                      /* N */
-                                                     NULL, 0,                                      /* P */
-                                                     NULL, 0,                                      /* Q */
-                                                     pxAttribute->pValue, pxAttribute->ulValueLen, /* D */
-                                                     NULL, 0 );                                    /* E */
+                                                     NULL,
+                                                     0, /* N */
+                                                     NULL,
+                                                     0, /* P */
+                                                     NULL,
+                                                     0, /* Q */
+                                                     pxAttribute->pValue,
+                                                     pxAttribute
+                                                         ->ulValueLen, /* D */
+                                                     NULL,
+                                                     0 ); /* E */
             break;
 
-        case ( CKA_EXPONENT_1 ):
-            lMbedTLSResult = mbedtls_mpi_read_binary( &pxRsaContext->DP, pxAttribute->pValue, pxAttribute->ulValueLen );
+        case( CKA_EXPONENT_1 ):
+            lMbedTLSResult = mbedtls_mpi_read_binary( &pxRsaContext->DP,
+                                                      pxAttribute->pValue,
+                                                      pxAttribute->ulValueLen );
             break;
 
-        case ( CKA_EXPONENT_2 ):
-            lMbedTLSResult = mbedtls_mpi_read_binary( &pxRsaContext->DQ, pxAttribute->pValue, pxAttribute->ulValueLen );
+        case( CKA_EXPONENT_2 ):
+            lMbedTLSResult = mbedtls_mpi_read_binary( &pxRsaContext->DQ,
+                                                      pxAttribute->pValue,
+                                                      pxAttribute->ulValueLen );
             break;
 
-        case ( CKA_COEFFICIENT ):
-            lMbedTLSResult = mbedtls_mpi_read_binary( &pxRsaContext->QP, pxAttribute->pValue, pxAttribute->ulValueLen );
+        case( CKA_COEFFICIENT ):
+            lMbedTLSResult = mbedtls_mpi_read_binary( &pxRsaContext->QP,
+                                                      pxAttribute->pValue,
+                                                      pxAttribute->ulValueLen );
             break;
 
         default:
 
-            /* This should never be reached, as the above types are what gets this function called.
-             * Nevertheless this is an error case, and MISRA requires a default statement. */
+            /* This should never be reached, as the above types are what gets
+             * this function called. Nevertheless this is an error case, and
+             * MISRA requires a default statement. */
             xResult = CKR_ATTRIBUTE_TYPE_INVALID;
             break;
     }
 
     if( lMbedTLSResult != 0 )
     {
-        LogError( ( "Failed to parse RSA private key template: mbed TLS error = %s : %s.",
+        LogError( ( "Failed to parse RSA private key template: mbed TLS error "
+                    "= %s : %s.",
                     mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
                     mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
         xResult = CKR_FUNCTION_FAILED;
@@ -762,27 +896,32 @@ static CK_RV prvRsaKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
 {
     CK_RV xResult = CKR_OK;
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     CK_BBOOL xBool = ( CK_BBOOL ) CK_FALSE;
 
     switch( pxAttribute->type )
     {
-        case ( CKA_CLASS ):
-        case ( CKA_KEY_TYPE ):
-        case ( CKA_LABEL ):
+        case( CKA_CLASS ):
+        case( CKA_KEY_TYPE ):
+        case( CKA_LABEL ):
             /* Do nothing. These values were parsed previously. */
             break;
 
-        case ( CKA_TOKEN ):
+        case( CKA_TOKEN ):
 
             if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
             {
-                ( void ) memcpy( &xBool, pxAttribute->pValue, sizeof( CK_BBOOL ) );
+                ( void ) memcpy( &xBool,
+                                 pxAttribute->pValue,
+                                 sizeof( CK_BBOOL ) );
             }
 
             /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
             /* coverity[misra_c_2012_rule_10_5_violation] */
             if( xBool != ( CK_BBOOL ) CK_TRUE )
             {
@@ -791,10 +930,12 @@ static CK_RV prvRsaKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
 
             break;
 
-        case ( CKA_VERIFY ):
+        case( CKA_VERIFY ):
 
             /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
             /* coverity[misra_c_2012_rule_10_5_violation] */
             if( xIsPrivate == ( CK_BBOOL ) CK_FALSE )
             {
@@ -807,10 +948,12 @@ static CK_RV prvRsaKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
 
             break;
 
-        case ( CKA_SIGN ):
+        case( CKA_SIGN ):
 
             /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
             /* coverity[misra_c_2012_rule_10_5_violation] */
             if( xIsPrivate == ( CK_BBOOL ) CK_TRUE )
             {
@@ -823,14 +966,14 @@ static CK_RV prvRsaKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
 
             break;
 
-        case ( CKA_MODULUS ):
-        case ( CKA_PUBLIC_EXPONENT ):
-        case ( CKA_PRIME_1 ):
-        case ( CKA_PRIME_2 ):
-        case ( CKA_PRIVATE_EXPONENT ):
-        case ( CKA_EXPONENT_1 ):
-        case ( CKA_EXPONENT_2 ):
-        case ( CKA_COEFFICIENT ):
+        case( CKA_MODULUS ):
+        case( CKA_PUBLIC_EXPONENT ):
+        case( CKA_PRIME_1 ):
+        case( CKA_PRIME_2 ):
+        case( CKA_PRIVATE_EXPONENT ):
+        case( CKA_EXPONENT_1 ):
+        case( CKA_EXPONENT_2 ):
+        case( CKA_COEFFICIENT ):
             xResult = prvRsaContextParse( pxAttribute, pxRsaContext );
             break;
 
@@ -846,237 +989,262 @@ static CK_RV prvRsaKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
  * @brief Parses attribute values for a private EC Key.
  */
 #ifndef pkcs11configSUPPRESS_ECDSA_MECHANISM
-    static CK_RV prvEcPrivKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
-                                       const mbedtls_pk_context * pxMbedContext )
+static CK_RV prvEcPrivKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
+                                   const mbedtls_pk_context * pxMbedContext )
+{
+    /* MISRA Ref 10.5.1 [Essential type casting] */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* coverity[misra_c_2012_rule_10_5_violation] */
+    CK_BBOOL xBool = ( CK_BBOOL ) CK_FALSE;
+    int32_t lMbedTLSResult = 0;
+    CK_RV xResult = CKR_OK;
+
+    mbedtls_ecp_keypair * pxKeyPair = ( mbedtls_ecp_keypair * )
+                                          pxMbedContext->pk_ctx;
+
+    if( pxAttribute->type == CKA_SIGN )
     {
+        if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
+        {
+            ( void ) memcpy( &xBool, pxAttribute->pValue, sizeof( CK_BBOOL ) );
+        }
+
         /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
-        CK_BBOOL xBool = ( CK_BBOOL ) CK_FALSE;
-        int32_t lMbedTLSResult = 0;
-        CK_RV xResult = CKR_OK;
-
-        mbedtls_ecp_keypair * pxKeyPair = ( mbedtls_ecp_keypair * ) pxMbedContext->pk_ctx;
-
-        if( pxAttribute->type == CKA_SIGN )
+        if( xBool == ( CK_BBOOL ) CK_FALSE )
         {
-            if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
-            {
-                ( void ) memcpy( &xBool, pxAttribute->pValue, sizeof( CK_BBOOL ) );
-            }
-
-            /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
-            /* coverity[misra_c_2012_rule_10_5_violation] */
-            if( xBool == ( CK_BBOOL ) CK_FALSE )
-            {
-                xResult = CKR_ATTRIBUTE_VALUE_INVALID;
-                LogError( ( "Failed to parse EC private key. Only private keys with signing privileges are supported." ) );
-            }
+            xResult = CKR_ATTRIBUTE_VALUE_INVALID;
+            LogError( ( "Failed to parse EC private key. Only private keys "
+                        "with signing privileges are supported." ) );
         }
-        else
-        {
-            lMbedTLSResult = mbedtls_mpi_read_binary( &pxKeyPair->d,
-                                                      pxAttribute->pValue,
-                                                      pxAttribute->ulValueLen );
-
-            if( lMbedTLSResult != 0 )
-            {
-                xResult = CKR_FUNCTION_FAILED;
-                LogError( ( "Failed to parse EC private key. MPI read binary failed: mbed TLS error = %s : %s.",
-                            mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                            mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
-            }
-        }
-
-        return xResult;
     }
+    else
+    {
+        lMbedTLSResult = mbedtls_mpi_read_binary( &pxKeyPair->d,
+                                                  pxAttribute->pValue,
+                                                  pxAttribute->ulValueLen );
+
+        if( lMbedTLSResult != 0 )
+        {
+            xResult = CKR_FUNCTION_FAILED;
+            LogError( ( "Failed to parse EC private key. MPI read binary "
+                        "failed: mbed TLS error = %s : %s.",
+                        mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                        mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+        }
+    }
+
+    return xResult;
+}
 #endif /* ifndef pkcs11configSUPPRESS_ECDSA_MECHANISM */
 
 /**
  * @brief Parses attribute values for a public EC Key.
  */
 #ifndef pkcs11configSUPPRESS_ECDSA_MECHANISM
-    static CK_RV prvEcPubKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
-                                      const mbedtls_pk_context * pxMbedContext )
+static CK_RV prvEcPubKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
+                                  const mbedtls_pk_context * pxMbedContext )
+{
+    /* MISRA Ref 10.5.1 [Essential type casting] */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* coverity[misra_c_2012_rule_10_5_violation] */
+    CK_BBOOL xBool = ( CK_BBOOL ) CK_FALSE;
+    int32_t lMbedTLSResult = 0;
+    CK_RV xResult = CKR_OK;
+
+    mbedtls_ecp_keypair * pxKeyPair = ( mbedtls_ecp_keypair * )
+                                          pxMbedContext->pk_ctx;
+
+    if( pxAttribute->type == CKA_VERIFY )
     {
-        /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
-        /* coverity[misra_c_2012_rule_10_5_violation] */
-        CK_BBOOL xBool = ( CK_BBOOL ) CK_FALSE;
-        int32_t lMbedTLSResult = 0;
-        CK_RV xResult = CKR_OK;
-
-        mbedtls_ecp_keypair * pxKeyPair = ( mbedtls_ecp_keypair * ) pxMbedContext->pk_ctx;
-
-        if( pxAttribute->type == CKA_VERIFY )
+        if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
         {
-            if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
-            {
-                ( void ) memcpy( &xBool, pxAttribute->pValue, pxAttribute->ulValueLen );
-            }
+            ( void ) memcpy( &xBool,
+                             pxAttribute->pValue,
+                             pxAttribute->ulValueLen );
+        }
 
-            /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
-            /* coverity[misra_c_2012_rule_10_5_violation] */
-            if( xBool == ( CK_BBOOL ) CK_FALSE )
+        /* MISRA Ref 10.5.1 [Essential type casting] */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* coverity[misra_c_2012_rule_10_5_violation] */
+        if( xBool == ( CK_BBOOL ) CK_FALSE )
+        {
+            xResult = CKR_ATTRIBUTE_VALUE_INVALID;
+            LogError( ( "Failed to parse EC public key. Expected verify "
+                        "permissions to be supported." ) );
+        }
+    }
+    else
+    {
+        /* Strip the ANS.1 Encoding of type and length. Otherwise mbed TLS
+         * won't be able to parse the binary EC point. */
+        if( pxAttribute->ulValueLen >= 2UL )
+        {
+            lMbedTLSResult = mbedtls_ecp_point_read_binary(
+                &pxKeyPair->grp,
+                &pxKeyPair->Q,
+                ( ( uint8_t * ) ( pxAttribute->pValue ) + 2U ),
+                ( pxAttribute->ulValueLen - 2U ) );
+
+            if( lMbedTLSResult != 0 )
             {
-                xResult = CKR_ATTRIBUTE_VALUE_INVALID;
-                LogError( ( "Failed to parse EC public key. Expected verify permissions to be supported." ) );
+                xResult = CKR_FUNCTION_FAILED;
+                LogError( ( "Failed to parse EC public key. "
+                            "mbedtls_ecp_point_read_binary failed: mbed TLS "
+                            "error = %s : %s.",
+                            mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                            mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
             }
         }
         else
         {
-            /* Strip the ANS.1 Encoding of type and length. Otherwise mbed TLS
-             * won't be able to parse the binary EC point. */
-            if( pxAttribute->ulValueLen >= 2UL )
-            {
-                lMbedTLSResult = mbedtls_ecp_point_read_binary( &pxKeyPair->grp,
-                                                                &pxKeyPair->Q,
-                                                                ( ( uint8_t * ) ( pxAttribute->pValue ) + 2U ),
-                                                                ( pxAttribute->ulValueLen - 2U ) );
-
-                if( lMbedTLSResult != 0 )
-                {
-                    xResult = CKR_FUNCTION_FAILED;
-                    LogError( ( "Failed to parse EC public key. mbedtls_ecp_point_read_binary failed: mbed TLS error = %s : %s.",
-                                mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                                mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
-                }
-            }
-            else
-            {
-                xResult = CKR_ATTRIBUTE_VALUE_INVALID;
-            }
+            xResult = CKR_ATTRIBUTE_VALUE_INVALID;
         }
-
-        return xResult;
     }
+
+    return xResult;
+}
 #endif /* ifndef pkcs11configSUPPRESS_ECDSA_MECHANISM */
 
 /**
  * @brief Parses attribute values for an EC Key.
  */
 #ifndef pkcs11configSUPPRESS_ECDSA_MECHANISM
-    static CK_RV prvEcKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
-                                   const mbedtls_pk_context * pxMbedContext,
-                                   CK_BBOOL xIsPrivate )
+static CK_RV prvEcKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
+                               const mbedtls_pk_context * pxMbedContext,
+                               CK_BBOOL xIsPrivate )
+{
+    CK_RV xResult = CKR_OK;
+    /* MISRA Ref 10.5.1 [Essential type casting] */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* coverity[misra_c_2012_rule_10_5_violation] */
+    CK_BBOOL xBool = ( CK_BBOOL ) CK_FALSE;
+    const CK_BYTE pxEcCurve[] = pkcs11DER_ENCODED_OID_P256;
+    const CK_BYTE * pxEcAttVal = NULL;
+    const CK_BBOOL * pxEcBoolAtt = NULL;
+
+    /* Common EC key attributes. */
+    switch( pxAttribute->type )
     {
-        CK_RV xResult = CKR_OK;
-        /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
-        /* coverity[misra_c_2012_rule_10_5_violation] */
-        CK_BBOOL xBool = ( CK_BBOOL ) CK_FALSE;
-        const CK_BYTE pxEcCurve[] = pkcs11DER_ENCODED_OID_P256;
-        const CK_BYTE * pxEcAttVal = NULL;
-        const CK_BBOOL * pxEcBoolAtt = NULL;
+        case( CKA_CLASS ):
+        case( CKA_KEY_TYPE ):
+        case( CKA_LABEL ):
+            break;
 
-        /* Common EC key attributes. */
-        switch( pxAttribute->type )
-        {
-            case ( CKA_CLASS ):
-            case ( CKA_KEY_TYPE ):
-            case ( CKA_LABEL ):
-                break;
+        case( CKA_TOKEN ):
+            pxEcBoolAtt = ( CK_BBOOL * ) pxAttribute->pValue;
 
-            case ( CKA_TOKEN ):
-                pxEcBoolAtt = ( CK_BBOOL * ) pxAttribute->pValue;
+            if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
+            {
+                ( void ) memcpy( &xBool, pxEcBoolAtt, sizeof( CK_BBOOL ) );
+            }
 
-                if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
+            /* MISRA Ref 10.5.1 [Essential type casting] */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
+            /* coverity[misra_c_2012_rule_10_5_violation] */
+            if( xBool != ( CK_BBOOL ) CK_TRUE )
+            {
+                LogError( ( "Failed parsing EC key template. Expected token "
+                            "type to be true, but it was false." ) );
+                xResult = CKR_ATTRIBUTE_VALUE_INVALID;
+            }
+
+            break;
+
+        case( CKA_EC_PARAMS ):
+            pxEcAttVal = ( CK_BYTE * ) pxAttribute->pValue;
+
+            if( pxAttribute->ulValueLen == sizeof( pxEcCurve ) )
+            {
+                if( memcmp( pxEcCurve, pxEcAttVal, sizeof( pxEcCurve ) ) != 0 )
                 {
-                    ( void ) memcpy( &xBool, pxEcBoolAtt, sizeof( CK_BBOOL ) );
+                    xResult = CKR_TEMPLATE_INCONSISTENT;
+                    LogError(
+                        ( "Failed parsing EC key template. The elliptic curve "
+                          "was wrong. Expected elliptic curve P-256." ) );
                 }
+            }
 
-                /* MISRA Ref 10.5.1 [Essential type casting] */
-                /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
-                /* coverity[misra_c_2012_rule_10_5_violation] */
-                if( xBool != ( CK_BBOOL ) CK_TRUE )
-                {
-                    LogError( ( "Failed parsing EC key template. Expected token type to be true, but it was false." ) );
-                    xResult = CKR_ATTRIBUTE_VALUE_INVALID;
-                }
+            break;
 
-                break;
+        case( CKA_VERIFY ):
+        case( CKA_EC_POINT ):
 
-            case ( CKA_EC_PARAMS ):
-                pxEcAttVal = ( CK_BYTE * ) pxAttribute->pValue;
+            /* MISRA Ref 10.5.1 [Essential type casting] */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
+            /* coverity[misra_c_2012_rule_10_5_violation] */
+            if( xIsPrivate == ( CK_BBOOL ) CK_FALSE )
+            {
+                xResult = prvEcPubKeyAttParse( pxAttribute, pxMbedContext );
+            }
+            else
+            {
+                LogError( ( "Failed parsing EC key template. The key type "
+                            "did not match the template parameters. Expected "
+                            "a public key for CKA_VERIFY or CKA_EC_POINT." ) );
+                xResult = CKR_ATTRIBUTE_VALUE_INVALID;
+            }
 
-                if( pxAttribute->ulValueLen == sizeof( pxEcCurve ) )
-                {
-                    if( memcmp( pxEcCurve, pxEcAttVal, sizeof( pxEcCurve ) ) != 0 )
-                    {
-                        xResult = CKR_TEMPLATE_INCONSISTENT;
-                        LogError( ( "Failed parsing EC key template. The elliptic curve was wrong. Expected elliptic curve P-256." ) );
-                    }
-                }
+            break;
 
-                break;
+        case( CKA_SIGN ):
+        case( CKA_VALUE ):
 
-            case ( CKA_VERIFY ):
-            case ( CKA_EC_POINT ):
+            /* MISRA Ref 10.5.1 [Essential type casting] */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
+            /* coverity[misra_c_2012_rule_10_5_violation] */
+            if( xIsPrivate == ( CK_BBOOL ) CK_TRUE )
+            {
+                xResult = prvEcPrivKeyAttParse( pxAttribute, pxMbedContext );
+            }
+            else
+            {
+                LogError( ( "Failed parsing EC key template. The key type "
+                            "did not match the template parameters. Expected "
+                            "a private key for CKA_SIGN or CKA_VALUE." ) );
+                xResult = CKR_ATTRIBUTE_VALUE_INVALID;
+            }
 
-                /* MISRA Ref 10.5.1 [Essential type casting] */
-                /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
-                /* coverity[misra_c_2012_rule_10_5_violation] */
-                if( xIsPrivate == ( CK_BBOOL ) CK_FALSE )
-                {
-                    xResult = prvEcPubKeyAttParse( pxAttribute, pxMbedContext );
-                }
-                else
-                {
-                    LogError( ( "Failed parsing EC key template. The key type "
-                                "did not match the template parameters. Expected "
-                                "a public key for CKA_VERIFY or CKA_EC_POINT." ) );
-                    xResult = CKR_ATTRIBUTE_VALUE_INVALID;
-                }
+            break;
 
-                break;
-
-            case ( CKA_SIGN ):
-            case ( CKA_VALUE ):
-
-                /* MISRA Ref 10.5.1 [Essential type casting] */
-                /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
-                /* coverity[misra_c_2012_rule_10_5_violation] */
-                if( xIsPrivate == ( CK_BBOOL ) CK_TRUE )
-                {
-                    xResult = prvEcPrivKeyAttParse( pxAttribute, pxMbedContext );
-                }
-                else
-                {
-                    LogError( ( "Failed parsing EC key template. The key type "
-                                "did not match the template parameters. Expected "
-                                "a private key for CKA_SIGN or CKA_VALUE." ) );
-                    xResult = CKR_ATTRIBUTE_VALUE_INVALID;
-                }
-
-                break;
-
-            default:
-                LogError( ( "Failed parsing EC key template. Unknown attribute "
-                            "0x%0lX found for an EC key.", ( unsigned long int ) pxAttribute->type ) );
-                xResult = CKR_ATTRIBUTE_TYPE_INVALID;
-                break;
-        }
-
-        return xResult;
+        default:
+            LogError( ( "Failed parsing EC key template. Unknown attribute "
+                        "0x%0lX found for an EC key.",
+                        ( unsigned long int ) pxAttribute->type ) );
+            xResult = CKR_ATTRIBUTE_TYPE_INVALID;
+            break;
     }
+
+    return xResult;
+}
 #endif /* ifndef pkcs11configSUPPRESS_ECDSA_MECHANISM */
 
 /*-----------------------------------------------------------------------*/
 /* Functions for maintaining the PKCS #11 module's label-handle lookups. */
 /*-----------------------------------------------------------------------*/
 
-
 /**
- * @brief Searches the PKCS #11 module's object list for label and provides handle.
+ * @brief Searches the PKCS #11 module's object list for label and provides
+ * handle.
  *
  * @param[in] pcLabel            Array containing label.
  * @param[in] xLabelLength       Length of the label, in bytes.
  * @param[out] pxPalHandle       Pointer to the PAL handle to be provided.
  *                               CK_INVALID_HANDLE if no object found.
- * @param[out] pxAppHandle       Pointer to the application handle to be provided.
- *                               CK_INVALID_HANDLE if no object found.
+ * @param[out] pxAppHandle       Pointer to the application handle to be
+ * provided. CK_INVALID_HANDLE if no object found.
  */
 static void prvFindObjectInListByLabel( const CK_BYTE * pcLabel,
                                         CK_ULONG xLabelLength,
@@ -1090,24 +1258,31 @@ static void prvFindObjectInListByLabel( const CK_BYTE * pcLabel,
 
     for( ulIndex = 0; ulIndex < pkcs11configMAX_NUM_OBJECTS; ulIndex++ )
     {
-        if( 0 == memcmp( pcLabel, xP11Context.xObjectList.xObjects[ ulIndex ].xLabel, xLabelLength ) )
+        if( 0 == memcmp( pcLabel,
+                         xP11Context.xObjectList.xObjects[ ulIndex ].xLabel,
+                         xLabelLength ) )
         {
             LogDebug( ( "Found object in object list matching label." ) );
             *pxPalHandle = xP11Context.xObjectList.xObjects[ ulIndex ].xHandle;
-            *pxAppHandle = ulIndex + 1UL; /* Zero is not a valid handle, so let's offset by 1. */
+            *pxAppHandle = ulIndex + 1UL; /* Zero is not a valid handle, so
+                                             let's offset by 1. */
             break;
         }
     }
 }
 
 /**
- * @brief Looks up a PKCS #11 object's label and PAL handle given an application handle.
+ * @brief Looks up a PKCS #11 object's label and PAL handle given an application
+ * handle.
  *
- * @param[in] xAppHandle         The handle of the object being lookedup for, used by the application.
- * @param[out] pxPalHandle        Pointer to the handle corresponding to xPalHandle being used by the PAL.
- * @param[out] ppcLabel          Pointer to an array containing label.  NULL if object not found.
- * @param[out] pxLabelLength     Pointer to label length (includes a string null terminator).
- *                               0 if no object found.
+ * @param[in] xAppHandle         The handle of the object being lookedup for,
+ * used by the application.
+ * @param[out] pxPalHandle        Pointer to the handle corresponding to
+ * xPalHandle being used by the PAL.
+ * @param[out] ppcLabel          Pointer to an array containing label.  NULL if
+ * object not found.
+ * @param[out] pxLabelLength     Pointer to label length (includes a string null
+ * terminator). 0 if no object found.
  */
 static void prvFindObjectInListByHandle( CK_OBJECT_HANDLE xAppHandle,
                                          CK_OBJECT_HANDLE_PTR pxPalHandle,
@@ -1122,18 +1297,21 @@ static void prvFindObjectInListByHandle( CK_OBJECT_HANDLE xAppHandle,
 
     if( ulIndex < pkcs11configMAX_NUM_OBJECTS )
     {
-        if( xP11Context.xObjectList.xObjects[ ulIndex ].xHandle != CK_INVALID_HANDLE )
+        if( xP11Context.xObjectList.xObjects[ ulIndex ].xHandle !=
+            CK_INVALID_HANDLE )
         {
             LogDebug( ( "Found object in list by handle." ) );
             *ppcLabel = xP11Context.xObjectList.xObjects[ ulIndex ].xLabel;
-            *pxLabelLength = xP11Context.xObjectList.xObjects[ ulIndex ].xLabelSize;
+            *pxLabelLength = xP11Context.xObjectList.xObjects[ ulIndex ]
+                                 .xLabelSize;
             *pxPalHandle = xP11Context.xObjectList.xObjects[ ulIndex ].xHandle;
         }
     }
 }
 
 /**
- * @brief Removes an object from the module object list (xP11Context.xObjectList)
+ * @brief Removes an object from the module object list
+ * (xP11Context.xObjectList)
  *
  * @warning This does not delete the object from NVM.
  *
@@ -1153,9 +1331,12 @@ static CK_RV prvDeleteObjectFromList( CK_OBJECT_HANDLE xPalHandle )
          * been deleted in the PKCS11_PAL. */
         for( ulIndex = 0; ulIndex < pkcs11configMAX_NUM_OBJECTS; ulIndex++ )
         {
-            if( xP11Context.xObjectList.xObjects[ ulIndex ].xHandle == xPalHandle )
+            if( xP11Context.xObjectList.xObjects[ ulIndex ].xHandle ==
+                xPalHandle )
             {
-                ( void ) memset( &xP11Context.xObjectList.xObjects[ ulIndex ], 0, sizeof( P11Object_t ) );
+                ( void ) memset( &xP11Context.xObjectList.xObjects[ ulIndex ],
+                                 0,
+                                 sizeof( P11Object_t ) );
             }
         }
 
@@ -1175,7 +1356,8 @@ static CK_RV prvDeleteObjectFromList( CK_OBJECT_HANDLE xPalHandle )
  * @brief Add an object that exists in NVM to the application object array.
  *
  * @param[in] xPalHandle         The handle used by the PKCS #11 PAL for object.
- * @param[out] pxAppHandle       Updated to contain the application handle corresponding to xPalHandle.
+ * @param[out] pxAppHandle       Updated to contain the application handle
+ * corresponding to xPalHandle.
  * @param[in]  pcLabel           Pointer to object label.
  * @param[in] xLabelLength       Length of the PKCS #11 label.
  *
@@ -1200,9 +1382,11 @@ static CK_RV prvAddObjectToList( CK_OBJECT_HANDLE xPalHandle,
         P11Object_t * pxEmptyP11Object = NULL;
 
         /* Iterate over list to find an existing entry containing xPalHandle */
-        for( ulSearchIndex = 0; ulSearchIndex < pkcs11configMAX_NUM_OBJECTS; ulSearchIndex++ )
+        for( ulSearchIndex = 0; ulSearchIndex < pkcs11configMAX_NUM_OBJECTS;
+             ulSearchIndex++ )
         {
-            P11Object_t * pxP11Object = &( xP11Context.xObjectList.xObjects[ ulSearchIndex ] );
+            P11Object_t * pxP11Object = &(
+                xP11Context.xObjectList.xObjects[ ulSearchIndex ] );
 
             /* Update an existing entry with the desired xPalHandle */
             if( pxP11Object->xHandle == xPalHandle )
@@ -1228,8 +1412,7 @@ static CK_RV prvAddObjectToList( CK_OBJECT_HANDLE xPalHandle,
         }
 
         /* Check if we have reached the end of the list without writing */
-        if( ( xResult != CKR_OK ) &&
-            ( pxEmptyP11Object != NULL ) )
+        if( ( xResult != CKR_OK ) && ( pxEmptyP11Object != NULL ) )
         {
             pxEmptyP11Object->xHandle = xPalHandle;
             pxEmptyP11Object->xLabelSize = xLabelLength;
@@ -1271,18 +1454,22 @@ static CK_RV prvAppendEmptyECDerKey( uint8_t * pusECPrivateKey,
      * a1 04        -> Application identifier of length 4
      * 03 02     -> Bit string of length 2
      *    00 00  -> "Public key"
-     * https://forums.mbed.com/t/how-do-i-write-an-ec-private-key-w-no-public-key-to-der-format/4728 */
+     * https://forums.mbed.com/t/how-do-i-write-an-ec-private-key-w-no-public-key-to-der-format/4728
+     */
 
     /* If there was no public key in the structure, this byte
      * array will be appended to the valid private key.
      * It must be removed so that we can read the private
      * key back at a later time. */
-    lCompare = memcmp( &pusECPrivateKey[ ulDerBufSize - 6UL ], emptyPubKey, sizeof( emptyPubKey ) );
+    lCompare = memcmp( &pusECPrivateKey[ ulDerBufSize - 6UL ],
+                       emptyPubKey,
+                       sizeof( emptyPubKey ) );
 
     if( ( lCompare == 0 ) && ( *pulActualKeyLength >= 6UL ) )
     {
         /* Do not write the last 6 bytes to key storage. */
-        pusECPrivateKey[ ulDerBufSize - ( uint32_t ) lDerKeyLength + ( ( uint32_t ) 1 ) ] -= ( uint8_t ) 6;
+        pusECPrivateKey[ ulDerBufSize - ( uint32_t ) lDerKeyLength +
+                         ( ( uint32_t ) 1 ) ] -= ( uint8_t ) 6;
         *pulActualKeyLength -= ( ( uint32_t ) 6 );
     }
 
@@ -1306,7 +1493,8 @@ static CK_RV prvSaveDerKeyToPal( mbedtls_pk_context * pxMbedContext,
     uint32_t ulDerBufSize = 0;
 
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     if( xIsPrivate == ( CK_BBOOL ) CK_TRUE )
     {
@@ -1339,32 +1527,41 @@ static CK_RV prvSaveDerKeyToPal( mbedtls_pk_context * pxMbedContext,
         }
     }
 
-    LogDebug( ( "Allocating a %lu bytes sized buffer to write the key to.", ( unsigned long int ) ulDerBufSize ) );
+    LogDebug( ( "Allocating a %lu bytes sized buffer to write the key to.",
+                ( unsigned long int ) ulDerBufSize ) );
     pxDerKey = mbedtls_calloc( 1, ulDerBufSize );
 
     if( pxDerKey == NULL )
     {
-        LogError( ( "Failed saving DER formatted key to flash. Failed to malloc a buffer to contain the key for the mbed TLS context." ) );
+        LogError(
+            ( "Failed saving DER formatted key to flash. Failed to malloc a "
+              "buffer to contain the key for the mbed TLS context." ) );
         xResult = CKR_HOST_MEMORY;
     }
     else
     {
         /* MISRA Ref 10.5.1 [Essential type casting] */
-/* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
         if( xIsPrivate == ( CK_BBOOL ) CK_TRUE )
         {
-            lDerKeyLength = mbedtls_pk_write_key_der( pxMbedContext, pxDerKey, ulDerBufSize );
+            lDerKeyLength = mbedtls_pk_write_key_der( pxMbedContext,
+                                                      pxDerKey,
+                                                      ulDerBufSize );
         }
         else
         {
-            lDerKeyLength = mbedtls_pk_write_pubkey_der( pxMbedContext, pxDerKey, ulDerBufSize );
+            lDerKeyLength = mbedtls_pk_write_pubkey_der( pxMbedContext,
+                                                         pxDerKey,
+                                                         ulDerBufSize );
         }
     }
 
     if( lDerKeyLength < 0 )
     {
-        LogError( ( "Failed saving DER formatted key to flash. mbed TLS pk_write failed: mbed TLS error = %s : %s.",
+        LogError( ( "Failed saving DER formatted key to flash. mbed TLS "
+                    "pk_write failed: mbed TLS error = %s : %s.",
                     mbedtlsHighLevelCodeOrDefault( lDerKeyLength ),
                     mbedtlsLowLevelCodeOrDefault( lDerKeyLength ) ) );
         xResult = CKR_FUNCTION_FAILED;
@@ -1376,29 +1573,41 @@ static CK_RV prvSaveDerKeyToPal( mbedtls_pk_context * pxMbedContext,
     }
 
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
-    if( ( xResult == CKR_OK ) && ( xIsPrivate == ( CK_BBOOL ) CK_TRUE ) && ( xKeyType == CKK_EC ) )
+    if( ( xResult == CKR_OK ) && ( xIsPrivate == ( CK_BBOOL ) CK_TRUE ) &&
+        ( xKeyType == CKK_EC ) )
     {
-        xResult = prvAppendEmptyECDerKey( pxDerKey, ulDerBufSize, lDerKeyLength, &ulActualKeyLength );
+        xResult = prvAppendEmptyECDerKey( pxDerKey,
+                                          ulDerBufSize,
+                                          lDerKeyLength,
+                                          &ulActualKeyLength );
     }
 
-    if( ( xResult == CKR_OK ) && ( lDerKeyLength > 0 ) && ( ( uint32_t ) lDerKeyLength < ulDerBufSize ) )
+    if( ( xResult == CKR_OK ) && ( lDerKeyLength > 0 ) &&
+        ( ( uint32_t ) lDerKeyLength < ulDerBufSize ) )
     {
         xPalHandle = PKCS11_PAL_SaveObject( pxLabel,
-                                            pxDerKey + ( ulDerBufSize - ( uint32_t ) lDerKeyLength ),
+                                            pxDerKey +
+                                                ( ulDerBufSize -
+                                                  ( uint32_t ) lDerKeyLength ),
                                             ulActualKeyLength );
 
         if( xPalHandle == CK_INVALID_HANDLE )
         {
-            LogError( ( "Failed saving DER formatted key to flash. Failed to write DER formatted key to the PKCS #11 PAL." ) );
+            LogError( ( "Failed saving DER formatted key to flash. Failed to "
+                        "write DER formatted key to the PKCS #11 PAL." ) );
             xResult = CKR_DEVICE_MEMORY;
         }
     }
 
     if( xResult == CKR_OK )
     {
-        xResult = prvAddObjectToList( xPalHandle, pxObject, pxLabel->pValue, pxLabel->ulValueLen );
+        xResult = prvAddObjectToList( xPalHandle,
+                                      pxObject,
+                                      pxLabel->pValue,
+                                      pxLabel->ulValueLen );
     }
 
     mbedtls_free( pxDerKey );
@@ -1434,7 +1643,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_Initialize )( CK_VOID_PTR pInitArgs )
     ( void ) ( pInitArgs );
 
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     if( xP11Context.xIsInitialized != ( CK_BBOOL ) CK_TRUE )
     {
@@ -1446,13 +1656,16 @@ CK_DECLARE_FUNCTION( CK_RV, C_Initialize )( CK_VOID_PTR pInitArgs )
         }
         else
         {
-            LogError( ( "Failed to initialize PKCS #11. PAL failed with error code: 0x%0lX", ( unsigned long int ) xResult ) );
+            LogError( ( "Failed to initialize PKCS #11. PAL failed with error "
+                        "code: 0x%0lX",
+                        ( unsigned long int ) xResult ) );
         }
     }
     else
     {
         xResult = CKR_CRYPTOKI_ALREADY_INITIALIZED;
-        LogWarn( ( "Failed to initialize PKCS #11. PKCS #11 was already initialized." ) );
+        LogWarn( ( "Failed to initialize PKCS #11. PKCS #11 was already "
+                   "initialized." ) );
     }
 
     if( xResult == CKR_OK )
@@ -1482,7 +1695,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_Finalize )( CK_VOID_PTR pReserved )
     if( xResult == CKR_OK )
     {
         /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
         if( xP11Context.xIsInitialized == ( CK_BBOOL ) CK_FALSE )
         {
@@ -1499,7 +1713,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_Finalize )( CK_VOID_PTR pReserved )
         mbedtls_mutex_free( &xP11Context.xSessionMutex );
 
         /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
         xP11Context.xIsInitialized = ( CK_BBOOL ) CK_FALSE;
         LogInfo( ( "PKCS #11 was successfully uninitialized." ) );
@@ -1523,12 +1738,12 @@ CK_DECLARE_FUNCTION( CK_RV, C_Finalize )( CK_VOID_PTR pReserved )
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_getfunctionlist] */
-CK_DECLARE_FUNCTION( CK_RV, C_GetFunctionList )( CK_FUNCTION_LIST_PTR_PTR ppFunctionList )
+CK_DECLARE_FUNCTION( CK_RV, C_GetFunctionList )
+( CK_FUNCTION_LIST_PTR_PTR ppFunctionList )
 {
     CK_RV xResult = CKR_OK;
 
-    static CK_FUNCTION_LIST prvP11FunctionList =
-    {
+    static CK_FUNCTION_LIST prvP11FunctionList = {
         { CRYPTOKI_VERSION_MAJOR, CRYPTOKI_VERSION_MINOR },
         C_Initialize,
         C_Finalize,
@@ -1551,11 +1766,11 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetFunctionList )( CK_FUNCTION_LIST_PTR_PTR ppFunc
         C_Login, /*C_Login*/
         NULL,    /*C_Logout*/
         C_CreateObject,
-        NULL,    /*C_CopyObject*/
+        NULL, /*C_CopyObject*/
         C_DestroyObject,
-        NULL,    /*C_GetObjectSize*/
+        NULL, /*C_GetObjectSize*/
         C_GetAttributeValue,
-        NULL,    /*C_SetAttributeValue*/
+        NULL, /*C_SetAttributeValue*/
         C_FindObjectsInit,
         C_FindObjects,
         C_FindObjectsFinal,
@@ -1603,8 +1818,9 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetFunctionList )( CK_FUNCTION_LIST_PTR_PTR ppFunc
     if( NULL == ppFunctionList )
     {
         xResult = CKR_ARGUMENTS_BAD;
-        LogError( ( "Failed to return function pointer list. Expected a valid "
-                    "pointer to a CK_FUNCTION_LIST, but the pointer was NULL." ) );
+        LogError(
+            ( "Failed to return function pointer list. Expected a valid "
+              "pointer to a CK_FUNCTION_LIST, but the pointer was NULL." ) );
     }
     else
     {
@@ -1630,9 +1846,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetFunctionList )( CK_FUNCTION_LIST_PTR_PTR ppFunc
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_getslotlist] */
-CK_DECLARE_FUNCTION( CK_RV, C_GetSlotList )( CK_BBOOL tokenPresent,
-                                             CK_SLOT_ID_PTR pSlotList,
-                                             CK_ULONG_PTR pulCount )
+CK_DECLARE_FUNCTION( CK_RV, C_GetSlotList )
+( CK_BBOOL tokenPresent, CK_SLOT_ID_PTR pSlotList, CK_ULONG_PTR pulCount )
 {
     CK_RV xResult = CKR_OK;
 
@@ -1641,7 +1856,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetSlotList )( CK_BBOOL tokenPresent,
     ( void ) ( tokenPresent );
 
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     if( xP11Context.xIsInitialized != ( CK_BBOOL ) CK_TRUE )
     {
@@ -1667,14 +1883,17 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetSlotList )( CK_BBOOL tokenPresent,
             if( 0u == *pulCount )
             {
                 xResult = CKR_BUFFER_TOO_SMALL;
-                LogWarn( ( "The buffer is too small to contain the slot list." ) );
+                LogWarn(
+                    ( "The buffer is too small to contain the slot list." ) );
             }
             else
             {
                 pSlotList[ 0 ] = pkcs11SLOT_ID;
                 *pulCount = 1;
                 LogDebug( ( "Successfully Returned a PKCS #11 slot with ID "
-                            "%lu with a count of %lu.", ( unsigned long int ) pkcs11SLOT_ID, ( unsigned long int ) *pulCount ) );
+                            "%lu with a count of %lu.",
+                            ( unsigned long int ) pkcs11SLOT_ID,
+                            ( unsigned long int ) *pulCount ) );
             }
         }
     }
@@ -1682,7 +1901,6 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetSlotList )( CK_BBOOL tokenPresent,
     return xResult;
 }
 /* @[declare_pkcs11_mbedtls_c_getslotlist] */
-
 
 /**
  * @brief Obtains information about a particular token.
@@ -1698,8 +1916,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetSlotList )( CK_BBOOL tokenPresent,
  * @return CKR_OK.
  */
 /* @[declare_pkcs11_mbedtls_c_gettokeninfo] */
-CK_DECLARE_FUNCTION( CK_RV, C_GetTokenInfo )( CK_SLOT_ID slotID,
-                                              CK_TOKEN_INFO_PTR pInfo )
+CK_DECLARE_FUNCTION( CK_RV, C_GetTokenInfo )
+( CK_SLOT_ID slotID, CK_TOKEN_INFO_PTR pInfo )
 {
     /* Avoid compiler warnings about unused variables. */
     ( void ) slotID;
@@ -1720,12 +1938,12 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetTokenInfo )( CK_SLOT_ID slotID,
  *  \param[out] pInfo           Algorithm sizes and flags for the requested
  *                              mechanism, if supported.
  *
- * @return CKR_OK if the mechanism is supported. Otherwise, CKR_MECHANISM_INVALID.
+ * @return CKR_OK if the mechanism is supported. Otherwise,
+ * CKR_MECHANISM_INVALID.
  */
 /* @[declare_pkcs11_mbedtls_c_getmechanisminfo] */
-CK_DECLARE_FUNCTION( CK_RV, C_GetMechanismInfo )( CK_SLOT_ID slotID,
-                                                  CK_MECHANISM_TYPE type,
-                                                  CK_MECHANISM_INFO_PTR pInfo )
+CK_DECLARE_FUNCTION( CK_RV, C_GetMechanismInfo )
+( CK_SLOT_ID slotID, CK_MECHANISM_TYPE type, CK_MECHANISM_INFO_PTR pInfo )
 {
     CK_RV xResult = CKR_MECHANISM_INVALID;
 
@@ -1733,16 +1951,14 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetMechanismInfo )( CK_SLOT_ID slotID,
     {
         CK_MECHANISM_TYPE xType;
         CK_MECHANISM_INFO xInfo;
-    }
-    pxSupportedMechanisms[] =
-    {
-        { CKM_RSA_PKCS,        { 2048, 2048, CKF_SIGN              } },
-        { CKM_RSA_X_509,       { 2048, 2048, CKF_VERIFY            } },
-        #ifndef pkcs11configSUPPRESS_ECDSA_MECHANISM
-            { CKM_ECDSA,           { 256,  256,  CKF_SIGN | CKF_VERIFY } },
-            { CKM_EC_KEY_PAIR_GEN, { 256,  256,  CKF_GENERATE_KEY_PAIR } },
-        #endif
-        { CKM_SHA256,          { 0,    0,    CKF_DIGEST            } }
+    } pxSupportedMechanisms[] = {
+        { CKM_RSA_PKCS, { 2048, 2048, CKF_SIGN } },
+        { CKM_RSA_X_509, { 2048, 2048, CKF_VERIFY } },
+#ifndef pkcs11configSUPPRESS_ECDSA_MECHANISM
+        { CKM_ECDSA, { 256, 256, CKF_SIGN | CKF_VERIFY } },
+        { CKM_EC_KEY_PAIR_GEN, { 256, 256, CKF_GENERATE_KEY_PAIR } },
+#endif
+        { CKM_SHA256, { 0, 0, CKF_DIGEST } }
     };
     uint32_t ulMech = 0;
 
@@ -1757,13 +1973,17 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetMechanismInfo )( CK_SLOT_ID slotID,
     else
     {
         /* Look for the requested mechanism in the above table. */
-        for( ; ulMech < sizeof( pxSupportedMechanisms ) / sizeof( pxSupportedMechanisms[ 0 ] ); ulMech++ )
+        for( ; ulMech < sizeof( pxSupportedMechanisms ) /
+                            sizeof( pxSupportedMechanisms[ 0 ] );
+             ulMech++ )
         {
             if( pxSupportedMechanisms[ ulMech ].xType == type )
             {
                 /* The mechanism is supported. Copy out the details and break
                  * out of the loop. */
-                ( void ) memcpy( pInfo, &( pxSupportedMechanisms[ ulMech ].xInfo ), sizeof( CK_MECHANISM_INFO ) );
+                ( void ) memcpy( pInfo,
+                                 &( pxSupportedMechanisms[ ulMech ].xInfo ),
+                                 sizeof( CK_MECHANISM_INFO ) );
                 xResult = CKR_OK;
                 break;
             }
@@ -1784,10 +2004,11 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetMechanismInfo )( CK_SLOT_ID slotID,
  * @return CKR_OK.
  */
 /* @[declare_pkcs11_mbedtls_c_inittoken] */
-CK_DECLARE_FUNCTION( CK_RV, C_InitToken )( CK_SLOT_ID slotID,
-                                           CK_UTF8CHAR_PTR pPin,
-                                           CK_ULONG ulPinLen,
-                                           CK_UTF8CHAR_PTR pLabel )
+CK_DECLARE_FUNCTION( CK_RV, C_InitToken )
+( CK_SLOT_ID slotID,
+  CK_UTF8CHAR_PTR pPin,
+  CK_ULONG ulPinLen,
+  CK_UTF8CHAR_PTR pLabel )
 {
     /* Avoid compiler warnings about unused variables. */
     ( void ) slotID;
@@ -1802,7 +2023,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_InitToken )( CK_SLOT_ID slotID,
 /* @[declare_pkcs11_mbedtls_c_inittoken] */
 
 /**
- * @brief Opens a connection between an application and a particular token or sets up an application callback for token insertion.
+ * @brief Opens a connection between an application and a particular token or
+ * sets up an application callback for token insertion.
  *
  * \note PKCS #11 module must have been previously initialized with a call to
  * C_Initialize() before calling C_OpenSession().
@@ -1819,11 +2041,12 @@ CK_DECLARE_FUNCTION( CK_RV, C_InitToken )( CK_SLOT_ID slotID,
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_opensession] */
-CK_DECLARE_FUNCTION( CK_RV, C_OpenSession )( CK_SLOT_ID slotID,
-                                             CK_FLAGS flags,
-                                             CK_VOID_PTR pApplication,
-                                             CK_NOTIFY Notify,
-                                             CK_SESSION_HANDLE_PTR phSession )
+CK_DECLARE_FUNCTION( CK_RV, C_OpenSession )
+( CK_SLOT_ID slotID,
+  CK_FLAGS flags,
+  CK_VOID_PTR pApplication,
+  CK_NOTIFY Notify,
+  CK_SESSION_HANDLE_PTR phSession )
 {
     CK_RV xResult = CKR_OK;
     P11Session_t * pxSessionObj = NULL;
@@ -1835,12 +2058,14 @@ CK_DECLARE_FUNCTION( CK_RV, C_OpenSession )( CK_SLOT_ID slotID,
     /* Allow unused parameters to be cast to void to silence compiler warnings.
      * Even if they are a function pointer. */
     /* MISRA Ref 11.1.1 [Object type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-111 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-111 */
     ( void ) Notify;
 
     /* Check that the PKCS #11 module is initialized. */
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     if( xP11Context.xIsInitialized != ( CK_BBOOL ) CK_TRUE )
     {
@@ -1853,15 +2078,17 @@ CK_DECLARE_FUNCTION( CK_RV, C_OpenSession )( CK_SLOT_ID slotID,
     if( NULL == phSession )
     {
         xResult = CKR_ARGUMENTS_BAD;
-        LogError( ( "Could not open a session. phSession cannot be a NULL pointer." ) );
+        LogError( (
+            "Could not open a session. phSession cannot be a NULL pointer." ) );
     }
 
     /* For legacy reasons, the CKF_SERIAL_SESSION bit MUST always be set. */
     if( ( CKR_OK == xResult ) && ( 0UL == ( CKF_SERIAL_SESSION & flags ) ) )
     {
         xResult = CKR_SESSION_PARALLEL_NOT_SUPPORTED;
-        LogError( ( "Could not open a session. CKR_SESSION_PARALLEL_NOT_SUPPORTED "
-                    "must always be a set flag." ) );
+        LogError(
+            ( "Could not open a session. CKR_SESSION_PARALLEL_NOT_SUPPORTED "
+              "must always be a set flag." ) );
     }
 
     /*
@@ -1872,17 +2099,23 @@ CK_DECLARE_FUNCTION( CK_RV, C_OpenSession )( CK_SLOT_ID slotID,
         /* Get next open session slot. */
         if( mbedtls_mutex_lock( &xP11Context.xSessionMutex ) == 0 )
         {
-            for( ulSessionCount = 0; ulSessionCount < pkcs11configMAX_SESSIONS; ++ulSessionCount )
+            for( ulSessionCount = 0; ulSessionCount < pkcs11configMAX_SESSIONS;
+                 ++ulSessionCount )
             {
                 /* MISRA Ref 10.5.1 [Essential type casting] */
-                /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+                /* More details at:
+                 * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+                 */
                 /* coverity[misra_c_2012_rule_10_5_violation] */
-                if( pxP11Sessions[ ulSessionCount ].xOpened == ( CK_BBOOL ) CK_FALSE )
+                if( pxP11Sessions[ ulSessionCount ].xOpened ==
+                    ( CK_BBOOL ) CK_FALSE )
                 {
                     xResult = CKR_OK;
                     pxSessionObj = &pxP11Sessions[ ulSessionCount ];
                     /* MISRA Ref 10.5.1 [Essential type casting] */
-                    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+                    /* More details at:
+                     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+                     */
                     /* coverity[misra_c_2012_rule_10_5_violation] */
                     pxSessionObj->xOpened = ( CK_BBOOL ) CK_TRUE;
                     break;
@@ -1898,7 +2131,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_OpenSession )( CK_SLOT_ID slotID,
         else
         {
             xResult = CKR_FUNCTION_FAILED;
-            LogError( ( "Could not open a session. Unsuccessful in taking xSessionMutex." ) );
+            LogError( ( "Could not open a session. Unsuccessful in taking "
+                        "xSessionMutex." ) );
         }
 
         if( CKR_OK == xResult )
@@ -1913,9 +2147,11 @@ CK_DECLARE_FUNCTION( CK_RV, C_OpenSession )( CK_SLOT_ID slotID,
         /*
          * Assign the session.
          */
-        pxSessionObj->ulState =
-            ( 0UL != ( flags & CKF_RW_SESSION ) ) ? CKS_RW_PUBLIC_SESSION : CKS_RO_PUBLIC_SESSION;
-        LogDebug( ( "Assigned a 0x%0lX Type Session.", ( unsigned long int ) pxSessionObj->ulState ) );
+        pxSessionObj->ulState = ( 0UL != ( flags & CKF_RW_SESSION ) )
+                                    ? CKS_RW_PUBLIC_SESSION
+                                    : CKS_RO_PUBLIC_SESSION;
+        LogDebug( ( "Assigned a 0x%0lX Type Session.",
+                    ( unsigned long int ) pxSessionObj->ulState ) );
     }
 
     /*
@@ -1942,7 +2178,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_OpenSession )( CK_SLOT_ID slotID,
         /* Increment by one, as invalid handles in PKCS #11 are 0. */
         ++ulSessionCount;
         *phSession = ulSessionCount;
-        LogDebug( ( "Current session count at %lu", ( unsigned long int ) ( ulSessionCount - 1UL ) ) );
+        LogDebug( ( "Current session count at %lu",
+                    ( unsigned long int ) ( ulSessionCount - 1UL ) ) );
     }
 
     return xResult;
@@ -1964,7 +2201,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_CloseSession )( CK_SESSION_HANDLE hSession )
     CK_RV xResult = CKR_OK;
 
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     if( xP11Context.xIsInitialized == ( CK_BBOOL ) CK_FALSE )
     {
@@ -1979,7 +2217,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_CloseSession )( CK_SESSION_HANDLE hSession )
                     "was invalid." ) );
     }
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     else if( pxSession->xOpened == ( CK_BBOOL ) CK_TRUE )
     {
@@ -1997,7 +2236,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_CloseSession )( CK_SESSION_HANDLE hSession )
 
         mbedtls_sha256_free( &pxSession->xSHA256Context );
 
-        /* memset clears the open flag, so there is no need to set it to CK_FALSE */
+        /* memset clears the open flag, so there is no need to set it to
+         * CK_FALSE */
         ( void ) memset( pxSession, 0, sizeof( P11Session_t ) );
         LogInfo( ( "Successfully closed PKCS #11 session." ) );
     }
@@ -2010,7 +2250,6 @@ CK_DECLARE_FUNCTION( CK_RV, C_CloseSession )( CK_SESSION_HANDLE hSession )
 }
 /* @[declare_pkcs11_mbedtls_c_closesession] */
 
-
 /**
  * @brief Logs into a token. This function is not implemented for this port.
  *
@@ -2021,10 +2260,11 @@ CK_DECLARE_FUNCTION( CK_RV, C_CloseSession )( CK_SESSION_HANDLE hSession )
  * @return CKR_OK.
  */
 /* @[declare_pkcs11_mbedtls_c_login] */
-CK_DECLARE_FUNCTION( CK_RV, C_Login )( CK_SESSION_HANDLE hSession,
-                                       CK_USER_TYPE userType,
-                                       CK_UTF8CHAR_PTR pPin,
-                                       CK_ULONG ulPinLen )
+CK_DECLARE_FUNCTION( CK_RV, C_Login )
+( CK_SESSION_HANDLE hSession,
+  CK_USER_TYPE userType,
+  CK_UTF8CHAR_PTR pPin,
+  CK_ULONG ulPinLen )
 {
     /* Avoid warnings about unused parameters. */
     ( void ) hSession;
@@ -2042,7 +2282,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_Login )( CK_SESSION_HANDLE hSession,
 /* @[declare_pkcs11_mbedtls_c_login] */
 
 /**
- * @brief Helper function for parsing the templates of device certificates for C_CreateObject.
+ * @brief Helper function for parsing the templates of device certificates for
+ * C_CreateObject.
  *
  * @param[in] pxTemplate    Pointer to PKCS #11 attribute template.
  * @param[in] ulCount       length of templates array.
@@ -2064,8 +2305,10 @@ static CK_RV prvCreateCertificate( CK_ATTRIBUTE * pxTemplate,
     /* Search for the pointer to the certificate VALUE. */
     for( ulIndex = 0; ulIndex < ulCount; ulIndex++ )
     {
-        xResult = prvCertAttParse( &pxTemplate[ ulIndex ], &xCertificateType,
-                                   &pxCertificateValue, &xCertificateLength,
+        xResult = prvCertAttParse( &pxTemplate[ ulIndex ],
+                                   &xCertificateType,
+                                   &pxCertificateValue,
+                                   &xCertificateLength,
                                    &pxLabel );
 
         if( xResult != CKR_OK )
@@ -2074,7 +2317,8 @@ static CK_RV prvCreateCertificate( CK_ATTRIBUTE * pxTemplate,
         }
     }
 
-    if( ( xResult == CKR_OK ) && ( ( pxCertificateValue == NULL ) || ( pxLabel == NULL ) ) )
+    if( ( xResult == CKR_OK ) &&
+        ( ( pxCertificateValue == NULL ) || ( pxLabel == NULL ) ) )
     {
         LogError( ( "Failed to create certificate. Could not parse the "
                     "certificate value or label from the template." ) );
@@ -2083,7 +2327,9 @@ static CK_RV prvCreateCertificate( CK_ATTRIBUTE * pxTemplate,
 
     if( xResult == CKR_OK )
     {
-        xPalHandle = PKCS11_PAL_SaveObject( pxLabel, pxCertificateValue, xCertificateLength );
+        xPalHandle = PKCS11_PAL_SaveObject( pxLabel,
+                                            pxCertificateValue,
+                                            xCertificateLength );
 
         if( xPalHandle == 0UL ) /*Invalid handle. */
         {
@@ -2095,12 +2341,14 @@ static CK_RV prvCreateCertificate( CK_ATTRIBUTE * pxTemplate,
 
     if( xResult == CKR_OK )
     {
-        xResult = prvAddObjectToList( xPalHandle, pxObject, pxLabel->pValue, pxLabel->ulValueLen );
+        xResult = prvAddObjectToList( xPalHandle,
+                                      pxObject,
+                                      pxLabel->pValue,
+                                      pxLabel->ulValueLen );
     }
 
     return xResult;
 }
-
 
 /**
  * @brief Helper to search an attribute for the key type attribute.
@@ -2122,10 +2370,13 @@ static void prvGetKeyType( CK_KEY_TYPE * pxKeyType,
     {
         xAttribute = pxTemplate[ ulIndex ];
 
-        if( ( xAttribute.type == CKA_KEY_TYPE ) && ( xAttribute.ulValueLen == sizeof( CK_KEY_TYPE ) ) )
+        if( ( xAttribute.type == CKA_KEY_TYPE ) &&
+            ( xAttribute.ulValueLen == sizeof( CK_KEY_TYPE ) ) )
         {
             LogDebug( ( "Successfully found the key type in the template." ) );
-            ( void ) memcpy( pxKeyType, xAttribute.pValue, sizeof( CK_KEY_TYPE ) );
+            ( void ) memcpy( pxKeyType,
+                             xAttribute.pValue,
+                             sizeof( CK_KEY_TYPE ) );
             break;
         }
     }
@@ -2169,139 +2420,158 @@ static void prvGetLabel( CK_ATTRIBUTE ** ppxLabel,
  * @param[in] pxMbedContext mbedTLS pk context for parsing.
  * @param[in] pxLabel label of PKCS #11 object.
  *
- * @note Because public and private keys are stored in the same slot for this port,
- * importing one after the other requires a read of what was previously in the slot,
- * combination of the public and private key in DER format, and re-import of the
- * combination.
+ * @note Because public and private keys are stored in the same slot for this
+ * port, importing one after the other requires a read of what was previously in
+ * the slot, combination of the public and private key in DER format, and
+ * re-import of the combination.
  */
-    static CK_RV prvGetExistingKeyComponent( CK_OBJECT_HANDLE_PTR pxPalHandle,
-                                             mbedtls_pk_context * pxMbedContext,
-                                             const CK_ATTRIBUTE * pxLabel )
+static CK_RV prvGetExistingKeyComponent( CK_OBJECT_HANDLE_PTR pxPalHandle,
+                                         mbedtls_pk_context * pxMbedContext,
+                                         const CK_ATTRIBUTE * pxLabel )
+{
+    CK_BYTE_PTR pucData = NULL;
+    CK_ULONG ulDataLength = 0;
+    /* MISRA Ref 10.5.1 [Essential type casting] */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* coverity[misra_c_2012_rule_10_5_violation] */
+    CK_BBOOL xIsPrivate = ( CK_BBOOL ) CK_TRUE;
+    CK_RV xResult = CKR_OK;
+    int32_t lMbedTLSResult = 0;
+    CK_BYTE pxPubKeyLabel[] = { pkcs11configLABEL_DEVICE_PUBLIC_KEY_FOR_TLS };
+    CK_BYTE pxPrivKeyLabel[] = { pkcs11configLABEL_DEVICE_PRIVATE_KEY_FOR_TLS };
+
+    *pxPalHandle = CK_INVALID_HANDLE;
+
+    if( 0 == strncmp( pxLabel->pValue,
+                      pkcs11configLABEL_DEVICE_PRIVATE_KEY_FOR_TLS,
+                      pxLabel->ulValueLen ) )
     {
-        CK_BYTE_PTR pucData = NULL;
-        CK_ULONG ulDataLength = 0;
-        /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
-        /* coverity[misra_c_2012_rule_10_5_violation] */
-        CK_BBOOL xIsPrivate = ( CK_BBOOL ) CK_TRUE;
-        CK_RV xResult = CKR_OK;
-        int32_t lMbedTLSResult = 0;
-        CK_BYTE pxPubKeyLabel[] = { pkcs11configLABEL_DEVICE_PUBLIC_KEY_FOR_TLS };
-        CK_BYTE pxPrivKeyLabel[] = { pkcs11configLABEL_DEVICE_PRIVATE_KEY_FOR_TLS };
-
-        *pxPalHandle = CK_INVALID_HANDLE;
-
-        if( 0 == strncmp( pxLabel->pValue, pkcs11configLABEL_DEVICE_PRIVATE_KEY_FOR_TLS, pxLabel->ulValueLen ) )
-        {
-            *pxPalHandle = PKCS11_PAL_FindObject( pxPrivKeyLabel, pxLabel->ulValueLen );
-        }
-        else if( 0 == strncmp( pxLabel->pValue, pkcs11configLABEL_DEVICE_PUBLIC_KEY_FOR_TLS, pxLabel->ulValueLen ) )
-        {
-            *pxPalHandle = PKCS11_PAL_FindObject( pxPubKeyLabel, pxLabel->ulValueLen );
-            /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
-            /* coverity[misra_c_2012_rule_10_5_violation] */
-            xIsPrivate = ( CK_BBOOL ) CK_FALSE;
-        }
-        else
-        {
-            /* Unknown label passed to function */
-            LogWarn( ( "Unknown label found." ) );
-        }
-
-        if( *pxPalHandle != CK_INVALID_HANDLE )
-        {
-            xResult = PKCS11_PAL_GetObjectValue( *pxPalHandle, &pucData, &ulDataLength, &xIsPrivate );
-        }
-        else
-        {
-            LogDebug( ( "Could not find an existing PKCS #11 PAL object." ) );
-        }
-
-        if( ( xResult == CKR_OK ) && ( *pxPalHandle != CK_INVALID_HANDLE ) )
-        {
-            /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
-            /* coverity[misra_c_2012_rule_10_5_violation] */
-            if( xIsPrivate == ( CK_BBOOL ) CK_TRUE )
-            {
-                #if MBEDTLS_VERSION_NUMBER < 0x03000000
-                    lMbedTLSResult = mbedtls_pk_parse_key( pxMbedContext,
-                                                           pucData, ulDataLength,
-                                                           NULL, 0 );
-                #else
-                    lMbedTLSResult = mbedtls_pk_parse_key( pxMbedContext,
-                                                           pucData, ulDataLength,
-                                                           NULL, 0,
-                                                           mbedtls_ctr_drbg_random, &xP11Context.xMbedDrbgCtx );
-                #endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
-            }
-            else
-            {
-                lMbedTLSResult = mbedtls_pk_parse_public_key( pxMbedContext, pucData, ulDataLength );
-            }
-
-            PKCS11_PAL_GetObjectValueCleanup( pucData, ulDataLength );
-        }
-
-        if( lMbedTLSResult != 0 )
-        {
-            LogError( ( "Failed to get existing object value. mbedTLS pk parse "
-                        "failed with mbed TLS error = %s : %s.",
-                        mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                        mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
-            *pxPalHandle = CK_INVALID_HANDLE;
-        }
-
-        return xResult;
+        *pxPalHandle = PKCS11_PAL_FindObject( pxPrivKeyLabel,
+                                              pxLabel->ulValueLen );
     }
+    else if( 0 == strncmp( pxLabel->pValue,
+                           pkcs11configLABEL_DEVICE_PUBLIC_KEY_FOR_TLS,
+                           pxLabel->ulValueLen ) )
+    {
+        *pxPalHandle = PKCS11_PAL_FindObject( pxPubKeyLabel,
+                                              pxLabel->ulValueLen );
+        /* MISRA Ref 10.5.1 [Essential type casting] */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* coverity[misra_c_2012_rule_10_5_violation] */
+        xIsPrivate = ( CK_BBOOL ) CK_FALSE;
+    }
+    else
+    {
+        /* Unknown label passed to function */
+        LogWarn( ( "Unknown label found." ) );
+    }
+
+    if( *pxPalHandle != CK_INVALID_HANDLE )
+    {
+        xResult = PKCS11_PAL_GetObjectValue( *pxPalHandle,
+                                             &pucData,
+                                             &ulDataLength,
+                                             &xIsPrivate );
+    }
+    else
+    {
+        LogDebug( ( "Could not find an existing PKCS #11 PAL object." ) );
+    }
+
+    if( ( xResult == CKR_OK ) && ( *pxPalHandle != CK_INVALID_HANDLE ) )
+    {
+        /* MISRA Ref 10.5.1 [Essential type casting] */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* coverity[misra_c_2012_rule_10_5_violation] */
+        if( xIsPrivate == ( CK_BBOOL ) CK_TRUE )
+        {
+    #if MBEDTLS_VERSION_NUMBER < 0x03000000
+            lMbedTLSResult = mbedtls_pk_parse_key( pxMbedContext,
+                                                   pucData,
+                                                   ulDataLength,
+                                                   NULL,
+                                                   0 );
+    #else
+            lMbedTLSResult = mbedtls_pk_parse_key( pxMbedContext,
+                                                   pucData,
+                                                   ulDataLength,
+                                                   NULL,
+                                                   0,
+                                                   mbedtls_ctr_drbg_random,
+                                                   &xP11Context.xMbedDrbgCtx );
+    #endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
+        }
+        else
+        {
+            lMbedTLSResult = mbedtls_pk_parse_public_key( pxMbedContext,
+                                                          pucData,
+                                                          ulDataLength );
+        }
+
+        PKCS11_PAL_GetObjectValueCleanup( pucData, ulDataLength );
+    }
+
+    if( lMbedTLSResult != 0 )
+    {
+        LogError( ( "Failed to get existing object value. mbedTLS pk parse "
+                    "failed with mbed TLS error = %s : %s.",
+                    mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                    mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+        *pxPalHandle = CK_INVALID_HANDLE;
+    }
+
+    return xResult;
+}
 
 /**
  * @brief Helper function to load an EC group to the mbed TLS pk context.
  * @param[in] pxMbedContext mbedtls context used to load EC group params.
  *
  */
-    static CK_RV prvLoadEcGroup( mbedtls_pk_context * pxMbedContext )
+static CK_RV prvLoadEcGroup( mbedtls_pk_context * pxMbedContext )
+{
+    CK_RV xResult = CKR_OK;
+    mbedtls_ecp_keypair * pxKeyPair;
+    int32_t lMbedTLSResult = 0;
+
+    pxKeyPair = mbedtls_calloc( 1, sizeof( mbedtls_ecp_keypair ) );
+
+    if( pxKeyPair != NULL )
     {
-        CK_RV xResult = CKR_OK;
-        mbedtls_ecp_keypair * pxKeyPair;
-        int32_t lMbedTLSResult = 0;
+        /* Initialize the info. */
+        pxMbedContext->pk_info = mbedtls_pk_info_from_type( MBEDTLS_PK_ECKEY );
 
-        pxKeyPair = mbedtls_calloc( 1, sizeof( mbedtls_ecp_keypair ) );
+        /* Initialize the context. */
+        pxMbedContext->pk_ctx = pxKeyPair;
+        mbedtls_ecp_keypair_init( pxKeyPair );
+        mbedtls_ecp_group_init( &pxKeyPair->grp );
 
-        if( pxKeyPair != NULL )
+        /* At this time, only P-256 curves are supported. */
+        lMbedTLSResult = mbedtls_ecp_group_load( &pxKeyPair->grp,
+                                                 MBEDTLS_ECP_DP_SECP256R1 );
+
+        if( lMbedTLSResult != 0 )
         {
-            /* Initialize the info. */
-            pxMbedContext->pk_info = mbedtls_pk_info_from_type( MBEDTLS_PK_ECKEY );
-
-            /* Initialize the context. */
-            pxMbedContext->pk_ctx = pxKeyPair;
-            mbedtls_ecp_keypair_init( pxKeyPair );
-            mbedtls_ecp_group_init( &pxKeyPair->grp );
-
-            /* At this time, only P-256 curves are supported. */
-            lMbedTLSResult = mbedtls_ecp_group_load( &pxKeyPair->grp,
-                                                     MBEDTLS_ECP_DP_SECP256R1 );
-
-            if( lMbedTLSResult != 0 )
-            {
-                LogError( ( "Failed creating an EC key. "
-                            "mbedtls_ecp_group_load failed: mbed "
-                            "TLS error = %s : %s.",
-                            mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                            mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
-                xResult = CKR_FUNCTION_FAILED;
-            }
+            LogError( ( "Failed creating an EC key. "
+                        "mbedtls_ecp_group_load failed: mbed "
+                        "TLS error = %s : %s.",
+                        mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                        mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+            xResult = CKR_FUNCTION_FAILED;
         }
-        else
-        {
-            LogError( ( "Failed creating an EC key. Could not allocate a "
-                        "mbedtls_ecp_keypair struct." ) );
-            xResult = CKR_HOST_MEMORY;
-        }
-
-        return xResult;
     }
+    else
+    {
+        LogError( ( "Failed creating an EC key. Could not allocate a "
+                    "mbedtls_ecp_keypair struct." ) );
+        xResult = CKR_HOST_MEMORY;
+    }
+
+    return xResult;
+}
 
 /**
  * @brief Helper function for importing elliptic curve keys from
@@ -2309,76 +2579,83 @@ static void prvGetLabel( CK_ATTRIBUTE ** ppxLabel,
  * @param[in] pxTemplate templates to search for a key in.
  * @param[in] ulCount length of templates array.
  * @param[in] pxObject PKCS #11 object handle.
- * @param[in] xIsPrivate boolean indicating whether the key is private or public.
+ * @param[in] xIsPrivate boolean indicating whether the key is private or
+ * public.
  */
-    static CK_RV prvCreateECKey( CK_ATTRIBUTE * pxTemplate,
-                                 CK_ULONG ulCount,
-                                 CK_OBJECT_HANDLE_PTR pxObject,
-                                 CK_BBOOL xIsPrivate )
+static CK_RV prvCreateECKey( CK_ATTRIBUTE * pxTemplate,
+                             CK_ULONG ulCount,
+                             CK_OBJECT_HANDLE_PTR pxObject,
+                             CK_BBOOL xIsPrivate )
 
+{
+    CK_RV xResult = CKR_OK;
+    uint32_t ulIndex;
+    CK_ATTRIBUTE_PTR pxLabel = NULL;
+    CK_OBJECT_HANDLE xPalHandle = CK_INVALID_HANDLE;
+    mbedtls_pk_context xMbedContext;
 
+    mbedtls_pk_init( &xMbedContext );
+
+    prvGetLabel( &pxLabel, pxTemplate, ulCount );
+
+    if( pxLabel == NULL )
     {
-        CK_RV xResult = CKR_OK;
-        uint32_t ulIndex;
-        CK_ATTRIBUTE_PTR pxLabel = NULL;
-        CK_OBJECT_HANDLE xPalHandle = CK_INVALID_HANDLE;
-        mbedtls_pk_context xMbedContext;
+        LogError(
+            ( "Failed to create an EC key. Received a NULL label pointer." ) );
+        xResult = CKR_ARGUMENTS_BAD;
+    }
+    else
+    {
+        xResult = prvGetExistingKeyComponent( &xPalHandle,
+                                              &xMbedContext,
+                                              pxLabel );
+    }
 
-        mbedtls_pk_init( &xMbedContext );
+    if( ( xResult == CKR_OK ) && ( xPalHandle == CK_INVALID_HANDLE ) )
+    {
+        /* An mbedTLS key is comprised of 2 pieces of data- an "info" and a
+         * "context". Since a valid key was not found by
+         * prvGetExistingKeyComponent, we are going to initialize the structure
+         * so that the mbedTLS structures will look the same as they would if a
+         * key had been found, minus the private key component. */
 
-        prvGetLabel( &pxLabel, pxTemplate, ulCount );
+        /* If a key had been found by prvGetExistingKeyComponent, the keypair
+         * context would have been malloc'ed. */
+        xResult = prvLoadEcGroup( &xMbedContext );
+    }
 
-        if( pxLabel == NULL )
+    /* Key will be assembled in the mbedTLS key context and then exported to DER
+     * for storage. */
+
+    if( xResult == CKR_OK )
+    {
+        for( ulIndex = 0; ulIndex < ulCount; ulIndex++ )
         {
-            LogError( ( "Failed to create an EC key. Received a NULL label pointer." ) );
-            xResult = CKR_ARGUMENTS_BAD;
-        }
-        else
-        {
-            xResult = prvGetExistingKeyComponent( &xPalHandle, &xMbedContext, pxLabel );
-        }
+            xResult = prvEcKeyAttParse( &pxTemplate[ ulIndex ],
+                                        &xMbedContext,
+                                        xIsPrivate );
 
-        if( ( xResult == CKR_OK ) && ( xPalHandle == CK_INVALID_HANDLE ) )
-        {
-            /* An mbedTLS key is comprised of 2 pieces of data- an "info" and a "context".
-             * Since a valid key was not found by prvGetExistingKeyComponent, we are going to initialize
-             * the structure so that the mbedTLS structures will look the same as they would if a key
-             * had been found, minus the private key component. */
-
-            /* If a key had been found by prvGetExistingKeyComponent, the keypair context
-             * would have been malloc'ed. */
-            xResult = prvLoadEcGroup( &xMbedContext );
-        }
-
-        /* Key will be assembled in the mbedTLS key context and then exported to DER for storage. */
-
-        if( xResult == CKR_OK )
-        {
-            for( ulIndex = 0; ulIndex < ulCount; ulIndex++ )
+            if( xResult != CKR_OK )
             {
-                xResult = prvEcKeyAttParse( &pxTemplate[ ulIndex ], &xMbedContext, xIsPrivate );
-
-                if( xResult != CKR_OK )
-                {
-                    break;
-                }
+                break;
             }
         }
-
-        if( xResult == CKR_OK )
-        {
-            xResult = prvSaveDerKeyToPal( &xMbedContext,
-                                          pxObject,
-                                          pxLabel,
-                                          CKK_EC,
-                                          xIsPrivate );
-        }
-
-        /* Clean up the mbedTLS key context. */
-        mbedtls_pk_free( &xMbedContext );
-
-        return xResult;
     }
+
+    if( xResult == CKR_OK )
+    {
+        xResult = prvSaveDerKeyToPal( &xMbedContext,
+                                      pxObject,
+                                      pxLabel,
+                                      CKK_EC,
+                                      xIsPrivate );
+    }
+
+    /* Clean up the mbedTLS key context. */
+    mbedtls_pk_free( &xMbedContext );
+
+    return xResult;
+}
 #endif /* ifndef pkcs11configSUPPRESS_ECDSA_MECHANISM */
 
 /**
@@ -2387,7 +2664,8 @@ static void prvGetLabel( CK_ATTRIBUTE ** ppxLabel,
  * @param[in] pxTemplate templates to search for a key in.
  * @param[in] ulCount length of templates array.
  * @param[in] pxObject PKCS #11 object handle.
- * @param[in] xIsPrivate boolean indicating whether the key is private or public.
+ * @param[in] xIsPrivate boolean indicating whether the key is private or
+ * public.
  */
 static CK_RV prvCreateRsaKey( CK_ATTRIBUTE * pxTemplate,
                               CK_ULONG ulCount,
@@ -2399,8 +2677,10 @@ static CK_RV prvCreateRsaKey( CK_ATTRIBUTE * pxTemplate,
     uint32_t ulIndex;
     CK_ATTRIBUTE_PTR pxLabel = NULL;
 
-    /* mbedtls_rsa_context must be malloc'ed to use with mbedtls_pk_free function. */
-    mbedtls_rsa_context * pxRsaCtx = mbedtls_calloc( 1, sizeof( mbedtls_rsa_context ) );
+    /* mbedtls_rsa_context must be malloc'ed to use with mbedtls_pk_free
+     * function. */
+    mbedtls_rsa_context *
+        pxRsaCtx = mbedtls_calloc( 1, sizeof( mbedtls_rsa_context ) );
 
     prvGetLabel( &pxLabel, pxTemplate, ulCount );
 
@@ -2416,11 +2696,11 @@ static CK_RV prvCreateRsaKey( CK_ATTRIBUTE * pxTemplate,
         xMbedContext.pk_ctx = pxRsaCtx;
         xMbedContext.pk_info = mbedtls_pk_info_from_type( MBEDTLS_PK_RSA );
 
-        #if MBEDTLS_VERSION_NUMBER < 0x03000000
-            mbedtls_rsa_init( pxRsaCtx, MBEDTLS_RSA_PKCS_V15, 0 /*ignored.*/ );
-        #else
-            mbedtls_rsa_init( pxRsaCtx );
-        #endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
+#if MBEDTLS_VERSION_NUMBER < 0x03000000
+        mbedtls_rsa_init( pxRsaCtx, MBEDTLS_RSA_PKCS_V15, 0 /*ignored.*/ );
+#else
+        mbedtls_rsa_init( pxRsaCtx );
+#endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
     }
     else
     {
@@ -2434,7 +2714,9 @@ static CK_RV prvCreateRsaKey( CK_ATTRIBUTE * pxTemplate,
         /* Parse template and collect the relevant parts. */
         for( ulIndex = 0; ulIndex < ulCount; ulIndex++ )
         {
-            xResult = prvRsaKeyAttParse( &pxTemplate[ ulIndex ], xMbedContext.pk_ctx, xIsPrivate );
+            xResult = prvRsaKeyAttParse( &pxTemplate[ ulIndex ],
+                                         xMbedContext.pk_ctx,
+                                         xIsPrivate );
 
             if( xResult != CKR_OK )
             {
@@ -2467,29 +2749,34 @@ static CK_RV prvHMACKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
 {
     CK_RV xResult = CKR_OK;
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     CK_BBOOL xBool = ( CK_BBOOL ) CK_FALSE;
 
     switch( pxAttribute->type )
     {
-        case ( CKA_CLASS ):
-        case ( CKA_KEY_TYPE ):
-        case ( CKA_LABEL ):
+        case( CKA_CLASS ):
+        case( CKA_KEY_TYPE ):
+        case( CKA_LABEL ):
             /* Do nothing. These values were parsed previously. */
             break;
 
-        case ( CKA_TOKEN ):
-        case ( CKA_VERIFY ):
-        case ( CKA_SIGN ):
+        case( CKA_TOKEN ):
+        case( CKA_VERIFY ):
+        case( CKA_SIGN ):
 
             if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
             {
-                ( void ) memcpy( &xBool, pxAttribute->pValue, sizeof( CK_BBOOL ) );
+                ( void ) memcpy( &xBool,
+                                 pxAttribute->pValue,
+                                 sizeof( CK_BBOOL ) );
             }
 
             /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
             /* coverity[misra_c_2012_rule_10_5_violation] */
             if( xBool != ( CK_BBOOL ) CK_TRUE )
             {
@@ -2498,7 +2785,7 @@ static CK_RV prvHMACKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
 
             break;
 
-        case ( CKA_VALUE ):
+        case( CKA_VALUE ):
 
             if( ( pxAttribute->ulValueLen >= PKCS11_SHA256_HMAC_MIN_SIZE ) &&
                 ( pxAttribute->pValue != NULL ) )
@@ -2508,8 +2795,9 @@ static CK_RV prvHMACKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
             }
             else
             {
-                LogError( ( "Failed to create SHA256-HMAC secret key. "
-                            "Key should be at least 32 bytes and/or non-NULL." ) );
+                LogError(
+                    ( "Failed to create SHA256-HMAC secret key. "
+                      "Key should be at least 32 bytes and/or non-NULL." ) );
                 xResult = CKR_ATTRIBUTE_VALUE_INVALID;
             }
 
@@ -2545,7 +2833,8 @@ static CK_RV prvCreateSHA256HMAC( CK_ATTRIBUTE * pxTemplate,
 
     if( pxLabel == NULL )
     {
-        LogError( ( "Failed creating a SHA256-HMAC key. Label was a NULL pointer." ) );
+        LogError( (
+            "Failed creating a SHA256-HMAC key. Label was a NULL pointer." ) );
         xResult = CKR_ARGUMENTS_BAD;
     }
 
@@ -2553,7 +2842,9 @@ static CK_RV prvCreateSHA256HMAC( CK_ATTRIBUTE * pxTemplate,
     {
         for( ulIndex = 0; ulIndex < ulCount; ulIndex++ )
         {
-            xResult = prvHMACKeyAttParse( &pxTemplate[ ulIndex ], &pxSecretKeyValue, &ulSecretKeyValueLen );
+            xResult = prvHMACKeyAttParse( &pxTemplate[ ulIndex ],
+                                          &pxSecretKeyValue,
+                                          &ulSecretKeyValueLen );
 
             if( xResult != CKR_OK )
             {
@@ -2571,12 +2862,16 @@ static CK_RV prvCreateSHA256HMAC( CK_ATTRIBUTE * pxTemplate,
 
         if( xPalHandle == CK_INVALID_HANDLE )
         {
-            LogError( ( "Failed saving HMAC secret key to flash. Failed to the PKCS #11 PAL." ) );
+            LogError( ( "Failed saving HMAC secret key to flash. Failed to the "
+                        "PKCS #11 PAL." ) );
             xResult = CKR_DEVICE_MEMORY;
         }
         else
         {
-            xResult = prvAddObjectToList( xPalHandle, pxObject, pxLabel->pValue, pxLabel->ulValueLen );
+            xResult = prvAddObjectToList( xPalHandle,
+                                          pxObject,
+                                          pxLabel->pValue,
+                                          pxLabel->ulValueLen );
         }
     }
 
@@ -2592,29 +2887,34 @@ static CK_RV prvCMACKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
 {
     CK_RV xResult = CKR_OK;
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     CK_BBOOL xBool = ( CK_BBOOL ) CK_FALSE;
 
     switch( pxAttribute->type )
     {
-        case ( CKA_CLASS ):
-        case ( CKA_KEY_TYPE ):
-        case ( CKA_LABEL ):
+        case( CKA_CLASS ):
+        case( CKA_KEY_TYPE ):
+        case( CKA_LABEL ):
             /* Do nothing. These values were parsed previously. */
             break;
 
-        case ( CKA_TOKEN ):
-        case ( CKA_VERIFY ):
-        case ( CKA_SIGN ):
+        case( CKA_TOKEN ):
+        case( CKA_VERIFY ):
+        case( CKA_SIGN ):
 
             if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
             {
-                ( void ) memcpy( &xBool, pxAttribute->pValue, sizeof( CK_BBOOL ) );
+                ( void ) memcpy( &xBool,
+                                 pxAttribute->pValue,
+                                 sizeof( CK_BBOOL ) );
             }
 
             /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
             /* coverity[misra_c_2012_rule_10_5_violation] */
             if( xBool != ( CK_BBOOL ) CK_TRUE )
             {
@@ -2623,7 +2923,7 @@ static CK_RV prvCMACKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
 
             break;
 
-        case ( CKA_VALUE ):
+        case( CKA_VALUE ):
 
             if( ( pxAttribute->ulValueLen >= PKCS11_AES_CMAC_MIN_SIZE ) &&
                 ( pxAttribute->pValue != NULL ) )
@@ -2633,8 +2933,9 @@ static CK_RV prvCMACKeyAttParse( const CK_ATTRIBUTE * pxAttribute,
             }
             else
             {
-                LogError( ( "Failed to create SHA256-HMAC secret key. "
-                            "Key should be at least 32 bytes and/or non-NULL." ) );
+                LogError(
+                    ( "Failed to create SHA256-HMAC secret key. "
+                      "Key should be at least 32 bytes and/or non-NULL." ) );
                 xResult = CKR_ATTRIBUTE_VALUE_INVALID;
             }
 
@@ -2670,7 +2971,8 @@ static CK_RV prvCreateAESCMAC( CK_ATTRIBUTE * pxTemplate,
 
     if( pxLabel == NULL )
     {
-        LogError( ( "Failed creating an AES-CMAC key. Label was a NULL pointer." ) );
+        LogError(
+            ( "Failed creating an AES-CMAC key. Label was a NULL pointer." ) );
         xResult = CKR_ARGUMENTS_BAD;
     }
 
@@ -2678,7 +2980,9 @@ static CK_RV prvCreateAESCMAC( CK_ATTRIBUTE * pxTemplate,
     {
         for( ulIndex = 0; ulIndex < ulCount; ulIndex++ )
         {
-            xResult = prvCMACKeyAttParse( &pxTemplate[ ulIndex ], &pxSecretKeyValue, &ulSecretKeyValueLen );
+            xResult = prvCMACKeyAttParse( &pxTemplate[ ulIndex ],
+                                          &pxSecretKeyValue,
+                                          &ulSecretKeyValueLen );
 
             if( xResult != CKR_OK )
             {
@@ -2695,12 +2999,16 @@ static CK_RV prvCreateAESCMAC( CK_ATTRIBUTE * pxTemplate,
 
         if( xPalHandle == CK_INVALID_HANDLE )
         {
-            LogError( ( "Failed saving CMAC secret key to flash. Failed to the PKCS #11 PAL." ) );
+            LogError( ( "Failed saving CMAC secret key to flash. Failed to the "
+                        "PKCS #11 PAL." ) );
             xResult = CKR_DEVICE_MEMORY;
         }
         else
         {
-            xResult = prvAddObjectToList( xPalHandle, pxObject, pxLabel->pValue, pxLabel->ulValueLen );
+            xResult = prvAddObjectToList( xPalHandle,
+                                          pxObject,
+                                          pxLabel->pValue,
+                                          pxLabel->ulValueLen );
         }
     }
 
@@ -2725,28 +3033,38 @@ static CK_RV prvCreatePrivateKey( CK_ATTRIBUTE * pxTemplate,
 
     if( xKeyType == CKK_RSA )
     {
-        xResult = prvCreateRsaKey( pxTemplate,
-                                   ulCount,
-                                   pxObject,
-                                   /* MISRA Ref 10.5.1 [Essential type casting] */
-                                   /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
-                                   /* coverity[misra_c_2012_rule_10_5_violation] */
-                                   ( CK_BBOOL ) CK_TRUE );
+        xResult = prvCreateRsaKey(
+            pxTemplate,
+            ulCount,
+            pxObject,
+            /* MISRA Ref 10.5.1 [Essential type casting]
+             */
+            /* More details at:
+               https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
+            /* coverity[misra_c_2012_rule_10_5_violation]
+             */
+            ( CK_BBOOL ) CK_TRUE );
     }
 
-    #ifndef pkcs11configSUPPRESS_ECDSA_MECHANISM
-        /* CKK_EC = CKK_ECDSA. */
-        else if( xKeyType == CKK_EC )
-        {
-            xResult = prvCreateECKey( pxTemplate,
-                                      ulCount,
-                                      pxObject,
-                                      /* MISRA Ref 10.5.1 [Essential type casting] */
-                                      /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
-                                      /* coverity[misra_c_2012_rule_10_5_violation] */
-                                      ( CK_BBOOL ) CK_TRUE );
-        }
-    #endif /* pkcs11configSUPPRESS_ECDSA_MECHANISM */
+#ifndef pkcs11configSUPPRESS_ECDSA_MECHANISM
+    /* CKK_EC = CKK_ECDSA. */
+    else if( xKeyType == CKK_EC )
+    {
+        xResult = prvCreateECKey(
+            pxTemplate,
+            ulCount,
+            pxObject,
+            /* MISRA Ref 10.5.1 [Essential type casting]
+             */
+            /* More details at:
+               https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
+            /* coverity[misra_c_2012_rule_10_5_violation]
+             */
+            ( CK_BBOOL ) CK_TRUE );
+    }
+#endif /* pkcs11configSUPPRESS_ECDSA_MECHANISM */
     else
     {
         LogError( ( "Failed to create a key. Tried to create a key with an "
@@ -2756,7 +3074,6 @@ static CK_RV prvCreatePrivateKey( CK_ATTRIBUTE * pxTemplate,
 
     return xResult;
 }
-
 
 /**
  * @brief Helper function for importing public keys using
@@ -2777,24 +3094,34 @@ static CK_RV prvCreatePublicKey( CK_ATTRIBUTE * pxTemplate,
     if( xKeyType == CKK_RSA )
     {
         /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
-        xResult = prvCreateRsaKey( pxTemplate, ulCount, pxObject, ( CK_BBOOL ) CK_FALSE );
+        xResult = prvCreateRsaKey( pxTemplate,
+                                   ulCount,
+                                   pxObject,
+                                   ( CK_BBOOL ) CK_FALSE );
     }
 
-    #ifndef pkcs11configSUPPRESS_ECDSA_MECHANISM
-        else if( xKeyType == CKK_EC ) /* CKK_EC = CKK_ECDSA. */
-        {
-            /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
-            /* coverity[misra_c_2012_rule_10_5_violation] */
-            xResult = prvCreateECKey( pxTemplate, ulCount, pxObject, ( CK_BBOOL ) CK_FALSE );
-        }
-    #endif /* ifndef pkcs11configSUPPRESS_ECDSA_MECHANISM */
+#ifndef pkcs11configSUPPRESS_ECDSA_MECHANISM
+    else if( xKeyType == CKK_EC ) /* CKK_EC = CKK_ECDSA. */
+    {
+        /* MISRA Ref 10.5.1 [Essential type casting] */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* coverity[misra_c_2012_rule_10_5_violation] */
+        xResult = prvCreateECKey( pxTemplate,
+                                  ulCount,
+                                  pxObject,
+                                  ( CK_BBOOL ) CK_FALSE );
+    }
+#endif /* ifndef pkcs11configSUPPRESS_ECDSA_MECHANISM */
     else
     {
-        LogError( ( "Failed to create public key. Received an invalid mechanism. "
-                    "Invalid key type 0x%0lX", ( unsigned long int ) xKeyType ) );
+        LogError(
+            ( "Failed to create public key. Received an invalid mechanism. "
+              "Invalid key type 0x%0lX",
+              ( unsigned long int ) xKeyType ) );
         xResult = CKR_MECHANISM_INVALID;
     }
 
@@ -2819,15 +3146,11 @@ static CK_RV prvCreateSecretKey( CK_ATTRIBUTE * pxTemplate,
 
     if( xKeyType == CKK_SHA256_HMAC )
     {
-        xResult = prvCreateSHA256HMAC( pxTemplate,
-                                       ulCount,
-                                       pxObject );
+        xResult = prvCreateSHA256HMAC( pxTemplate, ulCount, pxObject );
     }
     else if( xKeyType == CKK_AES )
     {
-        xResult = prvCreateAESCMAC( pxTemplate,
-                                    ulCount,
-                                    pxObject );
+        xResult = prvCreateAESCMAC( pxTemplate, ulCount, pxObject );
     }
     else
     {
@@ -2847,8 +3170,8 @@ static CK_RV prvCreateSecretKey( CK_ATTRIBUTE * pxTemplate,
  * @param[in] pTemplate                  List of attributes of the object to
  *                                       be created.
  * @param[in] ulCount                    Number of attributes in pTemplate.
- * @param[out] phObject                  Pointer to the location where the created
- *                                       object's handle will be placed.
+ * @param[out] phObject                  Pointer to the location where the
+ * created object's handle will be placed.
  *
  * <table>
  * <tr><th> Object Type             <th> Template Attributes
@@ -2890,18 +3213,18 @@ static CK_RV prvCreateSecretKey( CK_ATTRIBUTE * pxTemplate,
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_createobject] */
-CK_DECLARE_FUNCTION( CK_RV, C_CreateObject )( CK_SESSION_HANDLE hSession,
-                                              CK_ATTRIBUTE_PTR pTemplate,
-                                              CK_ULONG ulCount,
-                                              CK_OBJECT_HANDLE_PTR phObject )
+CK_DECLARE_FUNCTION( CK_RV, C_CreateObject )
+( CK_SESSION_HANDLE hSession,
+  CK_ATTRIBUTE_PTR pTemplate,
+  CK_ULONG ulCount,
+  CK_OBJECT_HANDLE_PTR phObject )
 {
     CK_OBJECT_CLASS xClass = 0;
 
     const P11Session_t * pxSession = prvSessionPointerFromHandle( hSession );
     CK_RV xResult = prvCheckValidSessionAndModule( pxSession );
 
-    if( ( NULL == pTemplate ) ||
-        ( NULL == phObject ) )
+    if( ( NULL == pTemplate ) || ( NULL == phObject ) )
     {
         LogError( ( "Failed to create object. Received a NULL template or "
                     "object pointer." ) );
@@ -2915,7 +3238,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_CreateObject )( CK_SESSION_HANDLE hSession,
 
     if( xResult == CKR_OK )
     {
-        LogInfo( ( "Creating a 0x%0lX type object.", ( unsigned long int ) xClass ) );
+        LogInfo( ( "Creating a 0x%0lX type object.",
+                   ( unsigned long int ) xClass ) );
 
         switch( xClass )
         {
@@ -2951,23 +3275,22 @@ CK_DECLARE_FUNCTION( CK_RV, C_CreateObject )( CK_SESSION_HANDLE hSession,
  * @param[in] hSession                   Handle of a valid PKCS #11 session.
  * @param[in] hObject                    Handle of the object to be destroyed.
  *
- * @warning In this implementation, if either the device public key or the device
- * private key (labels pkcs11configLABEL_DEVICE_PUBLIC_KEY_FOR_TLS and
+ * @warning In this implementation, if either the device public key or the
+ * device private key (labels pkcs11configLABEL_DEVICE_PUBLIC_KEY_FOR_TLS and
  * pkcs11configLABEL_DEVICE_PRIVATE_KEY_FOR_TLS) are deleted, both keys will
  * be destroyed.
  *
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_destroyobject] */
-CK_DECLARE_FUNCTION( CK_RV, C_DestroyObject )( CK_SESSION_HANDLE hSession,
-                                               CK_OBJECT_HANDLE hObject )
+CK_DECLARE_FUNCTION( CK_RV, C_DestroyObject )
+( CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hObject )
 {
     const P11Session_t * pxSession = prvSessionPointerFromHandle( hSession );
     CK_RV xResult = prvCheckValidSessionAndModule( pxSession );
     CK_OBJECT_HANDLE xPalHandle = CK_INVALID_HANDLE;
     CK_BYTE_PTR pcLabel = NULL;
     CK_ULONG xLabelLength = 0;
-
 
     prvFindObjectInListByHandle( hObject, &xPalHandle, &pcLabel, &xLabelLength );
 
@@ -2986,7 +3309,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_DestroyObject )( CK_SESSION_HANDLE hSession,
         }
         else
         {
-            LogError( ( "Failed to destroy object. PKCS11_PAL_DestroyObject failed." ) );
+            LogError( ( "Failed to destroy object. PKCS11_PAL_DestroyObject "
+                        "failed." ) );
         }
     }
     else
@@ -3003,18 +3327,16 @@ CK_DECLARE_FUNCTION( CK_RV, C_DestroyObject )( CK_SESSION_HANDLE hSession,
  * @param[in] hSession                   Handle of a valid PKCS #11 session.
  * @param[in] hObject                    PKCS #11 object handle to be queried.
  * @param[in,out] pTemplate              Attribute template.
- *                                       pxTemplate.pValue should be set to the attribute
- *                                       to be queried. pxTemplate.ulValueLen should be
- *                                       set to the length of the buffer allocated at
- *                                       pxTemplate.pValue, and will be updated to contain
- *                                       the actual length of the data copied.
- *                                       pxTemplate.pValue should be set to point to
- *                                       a buffer to receive the attribute value data.
- *                                       If parameter length is unknown,
- *                                       pxTemplate.pValue may be set to NULL, and
- *                                       this function will set the required buffer length
- *                                       in pxTemplate.ulValueLen.
- * @param[in] ulCount                    The number of attributes in the template.
+ *                                       pxTemplate.pValue should be set to the
+ * attribute to be queried. pxTemplate.ulValueLen should be set to the length of
+ * the buffer allocated at pxTemplate.pValue, and will be updated to contain the
+ * actual length of the data copied. pxTemplate.pValue should be set to point to
+ *                                       a buffer to receive the attribute value
+ * data. If parameter length is unknown, pxTemplate.pValue may be set to NULL,
+ * and this function will set the required buffer length in
+ * pxTemplate.ulValueLen.
+ * @param[in] ulCount                    The number of attributes in the
+ * template.
  *
  * <table>
  * <tr><th> Object Type             <th> Queryable Attributes
@@ -3036,13 +3358,15 @@ CK_DECLARE_FUNCTION( CK_RV, C_DestroyObject )( CK_SESSION_HANDLE hSession,
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_getattributevalue] */
-CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
-                                                   CK_OBJECT_HANDLE hObject,
-                                                   CK_ATTRIBUTE_PTR pTemplate,
-                                                   CK_ULONG ulCount )
+CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )
+( CK_SESSION_HANDLE hSession,
+  CK_OBJECT_HANDLE hObject,
+  CK_ATTRIBUTE_PTR pTemplate,
+  CK_ULONG ulCount )
 {
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     CK_BBOOL xIsPrivate = ( CK_BBOOL ) CK_TRUE;
     CK_ULONG iAttrib;
@@ -3064,7 +3388,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
     const P11Session_t * pxSession = prvSessionPointerFromHandle( hSession );
     CK_RV xResult = prvCheckValidSessionAndModule( pxSession );
 
-    if( ( CKR_OK == xResult ) && ( ( ( NULL == pTemplate ) ) || ( 0UL == ulCount ) ) )
+    if( ( CKR_OK == xResult ) &&
+        ( ( ( NULL == pTemplate ) ) || ( 0UL == ulCount ) ) )
     {
         LogError( ( "Failed to get attribute. The template was a NULL pointer "
                     "or the attribute count was 0." ) );
@@ -3073,7 +3398,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
 
     if( ( CKR_OK == xResult ) && ( CK_INVALID_HANDLE == hObject ) )
     {
-        LogError( ( "Failed to get attribute. The object handle was invalid." ) );
+        LogError(
+            ( "Failed to get attribute. The object handle was invalid." ) );
         xResult = CKR_OBJECT_HANDLE_INVALID;
     }
 
@@ -3082,11 +3408,18 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
         /*
          * Copy the object into a buffer.
          */
-        prvFindObjectInListByHandle( hObject, &xPalHandle, &pcLabel, &xSize ); /*pcLabel and xSize are ignored. */
+        prvFindObjectInListByHandle( hObject,
+                                     &xPalHandle,
+                                     &pcLabel,
+                                     &xSize ); /*pcLabel and xSize are ignored.
+                                                */
 
         if( xPalHandle != CK_INVALID_HANDLE )
         {
-            xResult = PKCS11_PAL_GetObjectValue( xPalHandle, &pxObjectValue, &ulLength, &xIsPrivate );
+            xResult = PKCS11_PAL_GetObjectValue( xPalHandle,
+                                                 &pxObjectValue,
+                                                 &ulLength,
+                                                 &xIsPrivate );
         }
         else
         {
@@ -3105,21 +3438,28 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
         /* Initialize mbed TLS x509 context. */
         mbedtls_x509_crt_init( &xMbedX509Context );
 
-        #if MBEDTLS_VERSION_NUMBER < 0x03000000
-            lMbedTLSResult = mbedtls_pk_parse_key( &xKeyContext,
-                                                   pxObjectValue, ulLength,
-                                                   NULL, 0 );
-        #else
-            lMbedTLSResult = mbedtls_pk_parse_key( &xKeyContext,
-                                                   pxObjectValue, ulLength,
-                                                   NULL, 0,
-                                                   mbedtls_ctr_drbg_random, &xP11Context.xMbedDrbgCtx );
-        #endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
+#if MBEDTLS_VERSION_NUMBER < 0x03000000
+        lMbedTLSResult = mbedtls_pk_parse_key( &xKeyContext,
+                                               pxObjectValue,
+                                               ulLength,
+                                               NULL,
+                                               0 );
+#else
+        lMbedTLSResult = mbedtls_pk_parse_key( &xKeyContext,
+                                               pxObjectValue,
+                                               ulLength,
+                                               NULL,
+                                               0,
+                                               mbedtls_ctr_drbg_random,
+                                               &xP11Context.xMbedDrbgCtx );
+#endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
 
         if( lMbedTLSResult == 0 )
         {
             /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
             /* coverity[misra_c_2012_rule_10_5_violation] */
             if( xIsPrivate == ( CK_BBOOL ) CK_TRUE )
             {
@@ -3132,12 +3472,16 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
                 xClass = CKO_PUBLIC_KEY;
             }
         }
-        else if( 0 == mbedtls_pk_parse_public_key( &xKeyContext, pxObjectValue, ulLength ) )
+        else if( 0 == mbedtls_pk_parse_public_key( &xKeyContext,
+                                                   pxObjectValue,
+                                                   ulLength ) )
         {
             LogDebug( ( "Object was a public key." ) );
             xClass = CKO_PUBLIC_KEY;
         }
-        else if( 0 == mbedtls_x509_crt_parse( &xMbedX509Context, pxObjectValue, ulLength ) )
+        else if( 0 == mbedtls_x509_crt_parse( &xMbedX509Context,
+                                              pxObjectValue,
+                                              ulLength ) )
         {
             LogDebug( ( "Object was a certificate." ) );
             xClass = CKO_CERTIFICATE;
@@ -3164,18 +3508,23 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
 
                     if( pTemplate[ iAttrib ].pValue == NULL )
                     {
-                        pTemplate[ iAttrib ].ulValueLen = sizeof( CK_OBJECT_CLASS );
+                        pTemplate[ iAttrib ].ulValueLen = sizeof(
+                            CK_OBJECT_CLASS );
                     }
                     else
                     {
-                        if( pTemplate[ iAttrib ].ulValueLen == sizeof( CK_OBJECT_CLASS ) )
+                        if( pTemplate[ iAttrib ].ulValueLen ==
+                            sizeof( CK_OBJECT_CLASS ) )
                         {
-                            ( void ) memcpy( pTemplate[ iAttrib ].pValue, &xClass, sizeof( CK_OBJECT_CLASS ) );
+                            ( void ) memcpy( pTemplate[ iAttrib ].pValue,
+                                             &xClass,
+                                             sizeof( CK_OBJECT_CLASS ) );
                         }
                         else
                         {
                             LogError( ( "Failed to parse attribute template. "
-                                        "Received a buffer smaller than CK_OBJECT_CLASS." ) );
+                                        "Received a buffer smaller than "
+                                        "CK_OBJECT_CLASS." ) );
                             xResult = CKR_BUFFER_TOO_SMALL;
                         }
                     }
@@ -3186,13 +3535,17 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
                 case CKA_VALUE:
 
                     /* MISRA Ref 10.5.1 [Essential type casting] */
-                    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+                    /* More details at:
+                     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+                     */
                     /* coverity[misra_c_2012_rule_10_5_violation] */
                     if( xIsPrivate == ( CK_BBOOL ) CK_TRUE )
                     {
-                        pTemplate[ iAttrib ].ulValueLen = CK_UNAVAILABLE_INFORMATION;
-                        LogError( ( "Failed to parse attribute. This data is "
-                                    "sensitive and the value will not be returned." ) );
+                        pTemplate[ iAttrib ]
+                            .ulValueLen = CK_UNAVAILABLE_INFORMATION;
+                        LogError( (
+                            "Failed to parse attribute. This data is "
+                            "sensitive and the value will not be returned." ) );
                         xResult = CKR_ATTRIBUTE_SENSITIVE;
                     }
                     else
@@ -3203,16 +3556,20 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
                         }
                         else if( pTemplate[ iAttrib ].ulValueLen < ulLength )
                         {
-                            LogError( ( "Failed to parse attribute. Buffer was "
-                                        "too small to contain data. Expected %lu "
-                                        "but got %lu.",
-                                        ( unsigned long int ) ulLength,
-                                        ( unsigned long int ) pTemplate[ iAttrib ].ulValueLen ) );
+                            LogError(
+                                ( "Failed to parse attribute. Buffer was "
+                                  "too small to contain data. Expected %lu "
+                                  "but got %lu.",
+                                  ( unsigned long int ) ulLength,
+                                  ( unsigned long int ) pTemplate[ iAttrib ]
+                                      .ulValueLen ) );
                             xResult = CKR_BUFFER_TOO_SMALL;
                         }
                         else
                         {
-                            ( void ) memcpy( pTemplate[ iAttrib ].pValue, pxObjectValue, ulLength );
+                            ( void ) memcpy( pTemplate[ iAttrib ].pValue,
+                                             pxObjectValue,
+                                             ulLength );
                         }
                     }
 
@@ -3224,10 +3581,12 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
                     {
                         pTemplate[ iAttrib ].ulValueLen = sizeof( CK_KEY_TYPE );
                     }
-                    else if( pTemplate[ iAttrib ].ulValueLen < sizeof( CK_KEY_TYPE ) )
+                    else if( pTemplate[ iAttrib ].ulValueLen <
+                             sizeof( CK_KEY_TYPE ) )
                     {
-                        LogError( ( "Failed to parse attribute. Expected buffer "
-                                    "of size CK_KEY_TYPE." ) );
+                        LogError(
+                            ( "Failed to parse attribute. Expected buffer "
+                              "of size CK_KEY_TYPE." ) );
                         xResult = CKR_BUFFER_TOO_SMALL;
                     }
                     else
@@ -3258,7 +3617,9 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
                                 break;
                         }
 
-                        ( void ) memcpy( pTemplate[ iAttrib ].pValue, &xPkcsKeyType, sizeof( CK_KEY_TYPE ) );
+                        ( void ) memcpy( pTemplate[ iAttrib ].pValue,
+                                         &xPkcsKeyType,
+                                         sizeof( CK_KEY_TYPE ) );
                     }
 
                     break;
@@ -3279,7 +3640,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
                     }
                     else
                     {
-                        if( pTemplate[ iAttrib ].ulValueLen < sizeof( ucP256Oid ) )
+                        if( pTemplate[ iAttrib ].ulValueLen <
+                            sizeof( ucP256Oid ) )
                         {
                             LogError( ( "Failed to parse attribute. "
                                         "CKA_EC_PARAMS buffer too small." ) );
@@ -3287,7 +3649,9 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
                         }
                         else
                         {
-                            ( void ) memcpy( pTemplate[ iAttrib ].pValue, ucP256Oid, sizeof( ucP256Oid ) );
+                            ( void ) memcpy( pTemplate[ iAttrib ].pValue,
+                                             ucP256Oid,
+                                             sizeof( ucP256Oid ) );
                         }
                     }
 
@@ -3301,20 +3665,25 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
                     }
                     else
                     {
-                        if( pTemplate[ iAttrib ].ulValueLen == pkcs11EC_POINT_LENGTH )
+                        if( pTemplate[ iAttrib ].ulValueLen ==
+                            pkcs11EC_POINT_LENGTH )
                         {
-                            pxKeyPair = ( mbedtls_ecp_keypair * ) xKeyContext.pk_ctx;
-                            *( ( uint8_t * ) pTemplate[ iAttrib ].pValue ) = 0x04; /* Mark the point as uncompressed. */
+                            pxKeyPair = ( mbedtls_ecp_keypair * )
+                                            xKeyContext.pk_ctx;
+                            *( ( uint8_t * ) pTemplate[ iAttrib ]
+                                   .pValue ) = 0x04; /* Mark the point as
+                                                        uncompressed. */
 
-                            /* Copy xSize value to avoid casting a CK_ULONG size pointer
-                             * to a size_t sized pointer. */
+                            /* Copy xSize value to avoid casting a CK_ULONG size
+                             * pointer to a size_t sized pointer. */
                             xMbedSize = xSize;
-                            lMbedTLSResult = mbedtls_ecp_tls_write_point( &pxKeyPair->grp,
-                                                                          &pxKeyPair->Q,
-                                                                          MBEDTLS_ECP_PF_UNCOMPRESSED,
-                                                                          &xMbedSize,
-                                                                          ( uint8_t * ) pTemplate[ iAttrib ].pValue + 1,
-                                                                          pTemplate[ iAttrib ].ulValueLen - 1UL );
+                            lMbedTLSResult = mbedtls_ecp_tls_write_point(
+                                &pxKeyPair->grp,
+                                &pxKeyPair->Q,
+                                MBEDTLS_ECP_PF_UNCOMPRESSED,
+                                &xMbedSize,
+                                ( uint8_t * ) pTemplate[ iAttrib ].pValue + 1,
+                                pTemplate[ iAttrib ].ulValueLen - 1UL );
                             xSize = xMbedSize;
                         }
                         else
@@ -3324,19 +3693,24 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
 
                         if( ( xResult == CKR_OK ) && ( lMbedTLSResult < 0 ) )
                         {
-                            if( lMbedTLSResult == MBEDTLS_ERR_ECP_BUFFER_TOO_SMALL )
+                            if( lMbedTLSResult ==
+                                MBEDTLS_ERR_ECP_BUFFER_TOO_SMALL )
                             {
-                                LogError( ( "Failed to extract EC point. "
-                                            "CKA_EC_POINT buffer was too small." ) );
+                                LogError(
+                                    ( "Failed to extract EC point. "
+                                      "CKA_EC_POINT buffer was too small." ) );
                                 xResult = CKR_BUFFER_TOO_SMALL;
                             }
                             else
                             {
-                                LogError( ( "Failed to extract EC point. "
-                                            "mbedtls_ecp_tls_write_point failed: "
-                                            "mbed TLS error = %s : %s.",
-                                            mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                                            mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+                                LogError(
+                                    ( "Failed to extract EC point. "
+                                      "mbedtls_ecp_tls_write_point failed: "
+                                      "mbed TLS error = %s : %s.",
+                                      mbedtlsHighLevelCodeOrDefault(
+                                          lMbedTLSResult ),
+                                      mbedtlsLowLevelCodeOrDefault(
+                                          lMbedTLSResult ) ) );
                                 xResult = CKR_FUNCTION_FAILED;
                             }
                         }
@@ -3381,19 +3755,17 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetAttributeValue )( CK_SESSION_HANDLE hSession,
  * same session across different tasks may lead to unexpected results.
  *
  * @param[in] hSession                      Handle of a valid PKCS #11 session.
- * @param[in] pTemplate                     Pointer to a template which specifies
- *                                          the object attributes to match.
- *                                          In this port, the only searchable attribute
- *                                          is object label.  All other attributes will
- *                                          be ignored.
- * @param[in] ulCount                       The number of attributes in pTemplate.
+ * @param[in] pTemplate                     Pointer to a template which
+ * specifies the object attributes to match. In this port, the only searchable
+ * attribute is object label.  All other attributes will be ignored.
+ * @param[in] ulCount                       The number of attributes in
+ * pTemplate.
  *
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_findobjectsinit] */
-CK_DECLARE_FUNCTION( CK_RV, C_FindObjectsInit )( CK_SESSION_HANDLE hSession,
-                                                 CK_ATTRIBUTE_PTR pTemplate,
-                                                 CK_ULONG ulCount )
+CK_DECLARE_FUNCTION( CK_RV, C_FindObjectsInit )
+( CK_SESSION_HANDLE hSession, CK_ATTRIBUTE_PTR pTemplate, CK_ULONG ulCount )
 {
     P11Session_t * pxSession = prvSessionPointerFromHandle( hSession );
     CK_RV xResult = prvCheckValidSessionAndModule( pxSession );
@@ -3411,13 +3783,15 @@ CK_DECLARE_FUNCTION( CK_RV, C_FindObjectsInit )( CK_SESSION_HANDLE hSession,
         xResult = CKR_ARGUMENTS_BAD;
         LogError( ( "Failed to initialize find object operation. Find objects "
                     "does not support searching by %lu attributes. Expected to "
-                    "search with either 1 or 2 attributes.", ( unsigned long int ) ulCount ) );
+                    "search with either 1 or 2 attributes.",
+                    ( unsigned long int ) ulCount ) );
     }
 
     if( xResult == CKR_OK )
     {
         /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
         if( prvOperationActive( pxSession ) == ( CK_BBOOL ) CK_TRUE )
         {
@@ -3438,34 +3812,44 @@ CK_DECLARE_FUNCTION( CK_RV, C_FindObjectsInit )( CK_SESSION_HANDLE hSession,
         {
             xAttribute = pTemplate[ ulIndex ];
 
-            if( ( xAttribute.type == CKA_LABEL ) && ( xAttribute.ulValueLen <= pkcs11configMAX_LABEL_LENGTH ) )
+            if( ( xAttribute.type == CKA_LABEL ) &&
+                ( xAttribute.ulValueLen <= pkcs11configMAX_LABEL_LENGTH ) )
             {
                 /* Plus one to leave room for a NULL terminator. */
-                pxFindObjectLabel = mbedtls_calloc( 1, xAttribute.ulValueLen + 1UL );
+                pxFindObjectLabel = mbedtls_calloc( 1,
+                                                    xAttribute.ulValueLen +
+                                                        1UL );
 
                 if( pxFindObjectLabel != NULL )
                 {
                     pxSession->xFindObjectLabelLen = xAttribute.ulValueLen;
                     pxSession->pxFindObjectLabel = pxFindObjectLabel;
-                    ( void ) memcpy( pxSession->pxFindObjectLabel, xAttribute.pValue, xAttribute.ulValueLen );
+                    ( void ) memcpy( pxSession->pxFindObjectLabel,
+                                     xAttribute.pValue,
+                                     xAttribute.ulValueLen );
                     xResult = CKR_OK;
                 }
                 else
                 {
-                    LogError( ( "Failed to initialize find object operation. Failed to "
-                                "allocate %lu bytes.", ( unsigned long int ) xAttribute.ulValueLen + 1UL ) );
+                    LogError(
+                        ( "Failed to initialize find object operation. Failed "
+                          "to "
+                          "allocate %lu bytes.",
+                          ( unsigned long int ) xAttribute.ulValueLen + 1UL ) );
                     xResult = CKR_HOST_MEMORY;
                 }
             }
             else
             {
-                LogDebug( ( "Search parameters other than label are ignored." ) );
+                LogDebug(
+                    ( "Search parameters other than label are ignored." ) );
             }
         }
     }
 
     /* Clean up memory if there was an error parsing the template. */
-    if( ( pxSession != NULL ) && ( xResult != CKR_OK ) && ( xResult != CKR_OPERATION_ACTIVE ) )
+    if( ( pxSession != NULL ) && ( xResult != CKR_OK ) &&
+        ( xResult != CKR_OPERATION_ACTIVE ) )
     {
         mbedtls_free( pxFindObjectLabel );
         pxSession->pxFindObjectLabel = NULL;
@@ -3487,41 +3871,40 @@ CK_DECLARE_FUNCTION( CK_RV, C_FindObjectsInit )( CK_SESSION_HANDLE hSession,
  * same session across different tasks may lead to unexpected results.
  *
  * @param[in] hSession                      Handle of a valid PKCS #11 session.
- * @param[out] phObject                     Points to the handle of the object to
- *                                          be found.
- * @param[in] ulMaxObjectCount              The size of the phObject object handle
- *                                          array. In this port, this value should
- *                                          always be set to 1, as searching for
- *                                          multiple objects is not supported.
- * @param[out] pulObjectCount               The actual number of objects that are
- *                                          found. In this port, if an object is found
- *                                          this value will be 1, otherwise if the
- *                                          object is not found, it will be set to 0.
+ * @param[out] phObject                     Points to the handle of the object
+ * to be found.
+ * @param[in] ulMaxObjectCount              The size of the phObject object
+ * handle array. In this port, this value should always be set to 1, as
+ * searching for multiple objects is not supported.
+ * @param[out] pulObjectCount               The actual number of objects that
+ * are found. In this port, if an object is found this value will be 1,
+ * otherwise if the object is not found, it will be set to 0.
  *
- * \note In the event that an object does not exist, CKR_OK will be returned, but
- * pulObjectCount will be set to 0.
+ * \note In the event that an object does not exist, CKR_OK will be returned,
+ * but pulObjectCount will be set to 0.
  *
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_findobjects] */
-CK_DECLARE_FUNCTION( CK_RV, C_FindObjects )( CK_SESSION_HANDLE hSession,
-                                             CK_OBJECT_HANDLE_PTR phObject,
-                                             CK_ULONG ulMaxObjectCount,
-                                             CK_ULONG_PTR pulObjectCount )
+CK_DECLARE_FUNCTION( CK_RV, C_FindObjects )
+( CK_SESSION_HANDLE hSession,
+  CK_OBJECT_HANDLE_PTR phObject,
+  CK_ULONG ulMaxObjectCount,
+  CK_ULONG_PTR pulObjectCount )
 {
     P11Session_t * pxSession = prvSessionPointerFromHandle( hSession );
     CK_RV xResult = prvCheckValidSessionAndModule( pxSession );
 
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     CK_OBJECT_HANDLE xPalHandle = CK_INVALID_HANDLE;
 
     /*
      * Check parameters.
      */
-    if( ( NULL == phObject ) ||
-        ( NULL == pulObjectCount ) )
+    if( ( NULL == phObject ) || ( NULL == pulObjectCount ) )
     {
         LogError( ( "Failed to find objects. The object handle or the object "
                     "count pointer was NULL." ) );
@@ -3548,26 +3931,35 @@ CK_DECLARE_FUNCTION( CK_RV, C_FindObjects )( CK_SESSION_HANDLE hSession,
     if( xResult == CKR_OK )
     {
         /* Try to find the object in module's list first. */
-        prvFindObjectInListByLabel( pxSession->pxFindObjectLabel, pxSession->xFindObjectLabelLen, &xPalHandle, phObject );
+        prvFindObjectInListByLabel( pxSession->pxFindObjectLabel,
+                                    pxSession->xFindObjectLabelLen,
+                                    &xPalHandle,
+                                    phObject );
 
         /* Check with the PAL if the object was previously stored. */
         if( *phObject == CK_INVALID_HANDLE )
         {
             LogDebug( ( "Could not find the object handle in the list. "
                         "Trying to search PKCS #11 PAL for object." ) );
-            xPalHandle = PKCS11_PAL_FindObject( pxSession->pxFindObjectLabel, pxSession->xFindObjectLabelLen );
+            xPalHandle = PKCS11_PAL_FindObject( pxSession->pxFindObjectLabel,
+                                                pxSession->xFindObjectLabelLen );
         }
 
         if( xPalHandle != CK_INVALID_HANDLE )
         {
-            LogDebug( ( "Found object in PAL. Adding object handle to list." ) );
-            xResult = prvAddObjectToList( xPalHandle, phObject, pxSession->pxFindObjectLabel, pxSession->xFindObjectLabelLen );
+            LogDebug(
+                ( "Found object in PAL. Adding object handle to list." ) );
+            xResult = prvAddObjectToList( xPalHandle,
+                                          phObject,
+                                          pxSession->pxFindObjectLabel,
+                                          pxSession->xFindObjectLabelLen );
             *pulObjectCount = 1;
         }
         else
         {
             /* Note: Objects living in header files are not destroyed. */
-            /* According to the PKCS #11 standard, not finding an object results in a CKR_OK return value with an object count of 0. */
+            /* According to the PKCS #11 standard, not finding an object results
+             * in a CKR_OK return value with an object count of 0. */
             *pulObjectCount = 0;
         }
     }
@@ -3647,14 +4039,14 @@ CK_DECLARE_FUNCTION( CK_RV, C_FindObjectsFinal )( CK_SESSION_HANDLE hSession )
  *
  *
  * @param[in] hSession                      Handle of a valid PKCS #11 session.
- * @param[in] pMechanism                    Digesting mechanism.  This port only supports
- *                                          the mechanism CKM_SHA256.
+ * @param[in] pMechanism                    Digesting mechanism.  This port only
+ * supports the mechanism CKM_SHA256.
  *
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_digestinit] */
-CK_DECLARE_FUNCTION( CK_RV, C_DigestInit )( CK_SESSION_HANDLE hSession,
-                                            CK_MECHANISM_PTR pMechanism )
+CK_DECLARE_FUNCTION( CK_RV, C_DigestInit )
+( CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMechanism )
 {
     P11Session_t * pxSession = prvSessionPointerFromHandle( hSession );
     CK_RV xResult = prvCheckValidSessionAndModule( pxSession );
@@ -3670,7 +4062,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_DigestInit )( CK_SESSION_HANDLE hSession,
     if( xResult == CKR_OK )
     {
         /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
         if( prvOperationActive( pxSession ) == ( CK_BBOOL ) CK_TRUE )
         {
@@ -3696,16 +4089,18 @@ CK_DECLARE_FUNCTION( CK_RV, C_DigestInit )( CK_SESSION_HANDLE hSession,
     if( xResult == CKR_OK )
     {
         mbedtls_sha256_init( &pxSession->xSHA256Context );
-        #if MBEDTLS_VERSION_NUMBER < 0x03000000
-            lMbedTLSResult = mbedtls_sha256_starts_ret( &pxSession->xSHA256Context, 0 );
-        #else
-            lMbedTLSResult = mbedtls_sha256_starts( &pxSession->xSHA256Context, 0 );
-        #endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
+#if MBEDTLS_VERSION_NUMBER < 0x03000000
+        lMbedTLSResult = mbedtls_sha256_starts_ret( &pxSession->xSHA256Context,
+                                                    0 );
+#else
+        lMbedTLSResult = mbedtls_sha256_starts( &pxSession->xSHA256Context, 0 );
+#endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
 
         if( 0 != lMbedTLSResult )
         {
             LogError( ( "Failed to initialize digest operation. "
-                        "mbedtls_sha256_starts_ret failed with: mbed TLS error = %s : %s.",
+                        "mbedtls_sha256_starts_ret failed with: mbed TLS error "
+                        "= %s : %s.",
                         mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
                         mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
             xResult = CKR_FUNCTION_FAILED;
@@ -3720,7 +4115,6 @@ CK_DECLARE_FUNCTION( CK_RV, C_DigestInit )( CK_SESSION_HANDLE hSession,
 }
 /* @[declare_pkcs11_mbedtls_c_digestinit] */
 
-
 /**
  * @brief Continues a multiple-part digesting operation.
  *
@@ -3732,15 +4126,15 @@ CK_DECLARE_FUNCTION( CK_RV, C_DigestInit )( CK_SESSION_HANDLE hSession,
  *
  *
  * @param[in] hSession                      Handle of a valid PKCS #11 session.
- * @param[in] pPart                         Pointer to the data to be added to the digest.
+ * @param[in] pPart                         Pointer to the data to be added to
+ * the digest.
  * @param[in] ulPartLen                     Length of the data located at pPart.
  *
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_digestupdate] */
-CK_DECLARE_FUNCTION( CK_RV, C_DigestUpdate )( CK_SESSION_HANDLE hSession,
-                                              CK_BYTE_PTR pPart,
-                                              CK_ULONG ulPartLen )
+CK_DECLARE_FUNCTION( CK_RV, C_DigestUpdate )
+( CK_SESSION_HANDLE hSession, CK_BYTE_PTR pPart, CK_ULONG ulPartLen )
 {
     P11Session_t * pxSession = prvSessionPointerFromHandle( hSession );
     CK_RV xResult = prvCheckValidSessionAndModule( pxSession );
@@ -3765,18 +4159,23 @@ CK_DECLARE_FUNCTION( CK_RV, C_DigestUpdate )( CK_SESSION_HANDLE hSession,
 
     if( xResult == CKR_OK )
     {
-        #if MBEDTLS_VERSION_NUMBER < 0x03000000
-            lMbedTLSResult = mbedtls_sha256_update_ret( &pxSession->xSHA256Context, pPart, ulPartLen );
-        #else
-            lMbedTLSResult = mbedtls_sha256_update( &pxSession->xSHA256Context, pPart, ulPartLen );
-        #endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
+#if MBEDTLS_VERSION_NUMBER < 0x03000000
+        lMbedTLSResult = mbedtls_sha256_update_ret( &pxSession->xSHA256Context,
+                                                    pPart,
+                                                    ulPartLen );
+#else
+        lMbedTLSResult = mbedtls_sha256_update( &pxSession->xSHA256Context,
+                                                pPart,
+                                                ulPartLen );
+#endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
 
         if( 0 != lMbedTLSResult )
         {
-            LogError( ( "Failed to perform digest operation. "
-                        "mbedtls_sha256_update_ret failed: mbed TLS error = %s : %s.",
-                        mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                        mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+            LogError(
+                ( "Failed to perform digest operation. "
+                  "mbedtls_sha256_update_ret failed: mbed TLS error = %s : %s.",
+                  mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                  mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
             pxSession->xOperationDigestMechanism = pkcs11NO_OPERATION;
             xResult = CKR_FUNCTION_FAILED;
         }
@@ -3805,30 +4204,24 @@ CK_DECLARE_FUNCTION( CK_RV, C_DigestUpdate )( CK_SESSION_HANDLE hSession,
  *
  *
  * @param[in] hSession                      Handle of a valid PKCS #11 session.
- * @param[out] pDigest                      Pointer to the location that receives
- *                                          the message digest.  Memory must be allocated
- *                                          by the caller.                                          Caller is responsible for allocating memory.
- *                                          Providing NULL for this input will cause
- *                                          pulDigestLen to be updated for length of
- *                                          buffer required.
- * @param[in,out] pulDigestLen              Points to the location that holds the length
- *                                          of the message digest.  If pDigest is NULL,
- *                                          this value is updated to contain the length
- *                                          of the buffer needed to hold the digest. Else
- *                                          it is updated to contain the actual length of
- *                                          the digest placed in pDigest.
+ * @param[out] pDigest                      Pointer to the location that
+ * receives the message digest.  Memory must be allocated by the caller. Caller
+ * is responsible for allocating memory. Providing NULL for this input will
+ * cause pulDigestLen to be updated for length of buffer required.
+ * @param[in,out] pulDigestLen              Points to the location that holds
+ * the length of the message digest.  If pDigest is NULL, this value is updated
+ * to contain the length of the buffer needed to hold the digest. Else it is
+ * updated to contain the actual length of the digest placed in pDigest.
  *
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_digestfinal] */
-CK_DECLARE_FUNCTION( CK_RV, C_DigestFinal )( CK_SESSION_HANDLE hSession,
-                                             CK_BYTE_PTR pDigest,
-                                             CK_ULONG_PTR pulDigestLen )
+CK_DECLARE_FUNCTION( CK_RV, C_DigestFinal )
+( CK_SESSION_HANDLE hSession, CK_BYTE_PTR pDigest, CK_ULONG_PTR pulDigestLen )
 {
     P11Session_t * pxSession = prvSessionPointerFromHandle( hSession );
     CK_RV xResult = prvCheckValidSessionAndModule( pxSession );
     int32_t lMbedTLSResult = 0;
-
 
     if( pulDigestLen == NULL )
     {
@@ -3859,19 +4252,24 @@ CK_DECLARE_FUNCTION( CK_RV, C_DigestFinal )( CK_SESSION_HANDLE hSession,
         {
             if( *pulDigestLen == ( CK_ULONG ) pkcs11SHA256_DIGEST_LENGTH )
             {
-                #if MBEDTLS_VERSION_NUMBER < 0x03000000
-                    lMbedTLSResult = mbedtls_sha256_finish_ret( &pxSession->xSHA256Context, pDigest );
-                #else
-                    lMbedTLSResult = mbedtls_sha256_finish( &pxSession->xSHA256Context, pDigest );
-                #endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
+#if MBEDTLS_VERSION_NUMBER < 0x03000000
+                lMbedTLSResult = mbedtls_sha256_finish_ret(
+                    &pxSession->xSHA256Context,
+                    pDigest );
+#else
+                lMbedTLSResult = mbedtls_sha256_finish( &pxSession
+                                                             ->xSHA256Context,
+                                                        pDigest );
+#endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
 
                 if( 0 != lMbedTLSResult )
                 {
-                    LogError( ( "Failed to finish digest operation. "
-                                "mbedtls_sha256_finish_ret failed: mbed TLS "
-                                "error = %s : %s.",
-                                mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                                mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+                    LogError(
+                        ( "Failed to finish digest operation. "
+                          "mbedtls_sha256_finish_ret failed: mbed TLS "
+                          "error = %s : %s.",
+                          mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                          mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
                     xResult = CKR_FUNCTION_FAILED;
                 }
 
@@ -3879,11 +4277,12 @@ CK_DECLARE_FUNCTION( CK_RV, C_DigestFinal )( CK_SESSION_HANDLE hSession,
             }
             else
             {
-                LogError( ( "Failed to finish digest operation. Received a "
-                            "buffer that was an unexpected size. Expected %lu and "
-                            "received %lu.",
-                            ( unsigned long int ) pkcs11SHA256_DIGEST_LENGTH,
-                            ( unsigned long int ) *pulDigestLen ) );
+                LogError(
+                    ( "Failed to finish digest operation. Received a "
+                      "buffer that was an unexpected size. Expected %lu and "
+                      "received %lu.",
+                      ( unsigned long int ) pkcs11SHA256_DIGEST_LENGTH,
+                      ( unsigned long int ) *pulDigestLen ) );
                 xResult = CKR_BUFFER_TOO_SMALL;
             }
         }
@@ -3961,7 +4360,8 @@ static CK_RV prvInitSHA256HMAC( P11Session_t * pxSession,
     if( xResult == CKR_OK )
     {
         lMbedTLSResult = mbedtls_md_hmac_starts( &pxSession->xHMACSecretContext,
-                                                 pucKeyData, ulKeyDataLength );
+                                                 pucKeyData,
+                                                 ulKeyDataLength );
 
         if( lMbedTLSResult != 0 )
         {
@@ -3996,10 +4396,7 @@ static CK_RV prvSignInitSHA256HMAC( P11Session_t * pxSession,
 {
     CK_RV xResult = CKR_OK;
 
-    xResult = prvInitSHA256HMAC( pxSession,
-                                 hKey,
-                                 pucKeyData,
-                                 ulKeyDataLength );
+    xResult = prvInitSHA256HMAC( pxSession, hKey, pucKeyData, ulKeyDataLength );
 
     return xResult;
 }
@@ -4051,10 +4448,11 @@ static CK_RV prvInitAESCMAC( P11Session_t * pxSession,
 
         if( lMbedTLSResult != 0 )
         {
-            LogError( ( "Failed to initialize AES-CMAC operation. "
-                        "mbedtls_cipher_setup failed: mbed TLS error = %s : %s.",
-                        mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                        mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+            LogError(
+                ( "Failed to initialize AES-CMAC operation. "
+                  "mbedtls_cipher_setup failed: mbed TLS error = %s : %s.",
+                  mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                  mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
             prvCMACCleanUp( pxSession );
             xResult = CKR_KEY_HANDLE_INVALID;
         }
@@ -4062,8 +4460,10 @@ static CK_RV prvInitAESCMAC( P11Session_t * pxSession,
 
     if( xResult == CKR_OK )
     {
-        lMbedTLSResult = mbedtls_cipher_cmac_starts( &pxSession->xCMACSecretContext,
-                                                     pucKeyData, ulKeyDataBitLength );
+        lMbedTLSResult = mbedtls_cipher_cmac_starts( &pxSession
+                                                          ->xCMACSecretContext,
+                                                     pucKeyData,
+                                                     ulKeyDataBitLength );
 
         if( lMbedTLSResult != 0 )
         {
@@ -4098,10 +4498,7 @@ static CK_RV prvSignInitAESCMAC( P11Session_t * pxSession,
 {
     CK_RV xResult = CKR_OK;
 
-    xResult = prvInitAESCMAC( pxSession,
-                              hKey,
-                              pucKeyData,
-                              ulKeyDataLength );
+    xResult = prvInitAESCMAC( pxSession, hKey, pucKeyData, ulKeyDataLength );
 
     return xResult;
 }
@@ -4116,9 +4513,9 @@ static void prvSignInitEC_RSACleanUp( P11Session_t * pxSession )
     pxSession->xSignKeyHandle = CK_INVALID_HANDLE;
 }
 
-
 /**
- * @brief Helper function for initializing a sign operation for an EC or RSA key.
+ * @brief Helper function for initializing a sign operation for an EC or RSA
+ * key.
  * @param[in] pxSession   Pointer to a valid PKCS #11 session.
  * @param[in] pMechanism  EC/RSA mechanism.
  * @param[in] hKey        EC/RSA private key handle.
@@ -4137,16 +4534,21 @@ static CK_RV prvSignInitEC_RSAKeys( P11Session_t * pxSession,
 
     mbedtls_pk_init( &pxSession->xSignKey );
 
-    #if MBEDTLS_VERSION_NUMBER < 0x03000000
-        lMbedTLSResult = mbedtls_pk_parse_key( &pxSession->xSignKey,
-                                               pucKeyData, ulKeyDataLength,
-                                               NULL, 0 );
-    #else
-        lMbedTLSResult = mbedtls_pk_parse_key( &pxSession->xSignKey,
-                                               pucKeyData, ulKeyDataLength,
-                                               NULL, 0,
-                                               mbedtls_ctr_drbg_random, &xP11Context.xMbedDrbgCtx );
-    #endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
+#if MBEDTLS_VERSION_NUMBER < 0x03000000
+    lMbedTLSResult = mbedtls_pk_parse_key( &pxSession->xSignKey,
+                                           pucKeyData,
+                                           ulKeyDataLength,
+                                           NULL,
+                                           0 );
+#else
+    lMbedTLSResult = mbedtls_pk_parse_key( &pxSession->xSignKey,
+                                           pucKeyData,
+                                           ulKeyDataLength,
+                                           NULL,
+                                           0,
+                                           mbedtls_ctr_drbg_random,
+                                           &xP11Context.xMbedDrbgCtx );
+#endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
 
     if( 0 == lMbedTLSResult )
     {
@@ -4168,11 +4570,14 @@ static CK_RV prvSignInitEC_RSAKeys( P11Session_t * pxSession,
     {
         xKeyType = mbedtls_pk_get_type( &pxSession->xSignKey );
 
-        if( ( pMechanism->mechanism == CKM_RSA_PKCS ) && ( xKeyType == MBEDTLS_PK_RSA ) )
+        if( ( pMechanism->mechanism == CKM_RSA_PKCS ) &&
+            ( xKeyType == MBEDTLS_PK_RSA ) )
         {
             /* Mechanisms align with the port. */
         }
-        else if( ( pMechanism->mechanism == CKM_ECDSA ) && ( ( xKeyType == MBEDTLS_PK_ECDSA ) || ( xKeyType == MBEDTLS_PK_ECKEY ) ) )
+        else if( ( pMechanism->mechanism == CKM_ECDSA ) &&
+                 ( ( xKeyType == MBEDTLS_PK_ECDSA ) ||
+                   ( xKeyType == MBEDTLS_PK_ECKEY ) ) )
         {
             /* Mechanisms align with the port. */
         }
@@ -4202,24 +4607,26 @@ static CK_RV prvSignInitEC_RSAKeys( P11Session_t * pxSession,
  *
  * @param[in] hSession                      Handle of a valid PKCS #11 session.
  * @param[in] pMechanism                    Mechanism used to sign.
- *                                          This port supports the following mechanisms:
+ *                                          This port supports the following
+ * mechanisms:
  *                                          - CKM_RSA_PKCS for RSA signatures
- *                                          - CKM_ECDSA for elliptic curve signatures
- *                                          Note that neither of these mechanisms perform
- *                                          hash operations.
- * @param[in] hKey                          The handle of the private key to be used for
- *                                          signature. Key must be compatible with the
- *                                          mechanism chosen by pMechanism.
+ *                                          - CKM_ECDSA for elliptic curve
+ * signatures Note that neither of these mechanisms perform hash operations.
+ * @param[in] hKey                          The handle of the private key to be
+ * used for signature. Key must be compatible with the mechanism chosen by
+ * pMechanism.
  *
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_signinit] */
-CK_DECLARE_FUNCTION( CK_RV, C_SignInit )( CK_SESSION_HANDLE hSession,
-                                          CK_MECHANISM_PTR pMechanism,
-                                          CK_OBJECT_HANDLE hKey )
+CK_DECLARE_FUNCTION( CK_RV, C_SignInit )
+( CK_SESSION_HANDLE hSession,
+  CK_MECHANISM_PTR pMechanism,
+  CK_OBJECT_HANDLE hKey )
 {
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     CK_BBOOL xIsPrivate = ( CK_BBOOL ) CK_TRUE;
     CK_OBJECT_HANDLE xPalHandle = CK_INVALID_HANDLE;
@@ -4240,11 +4647,14 @@ CK_DECLARE_FUNCTION( CK_RV, C_SignInit )( CK_SESSION_HANDLE hSession,
     }
 
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
-    if( ( xResult == CKR_OK ) && ( prvOperationActive( pxSession ) == ( CK_BBOOL ) CK_TRUE ) )
+    if( ( xResult == CKR_OK ) &&
+        ( prvOperationActive( pxSession ) == ( CK_BBOOL ) CK_TRUE ) )
     {
-        LogError( ( "Failed to initialize sign operation. Operation already active." ) );
+        LogError( ( "Failed to initialize sign operation. Operation already "
+                    "active." ) );
         xResult = CKR_OPERATION_ACTIVE;
     }
 
@@ -4258,12 +4668,16 @@ CK_DECLARE_FUNCTION( CK_RV, C_SignInit )( CK_SESSION_HANDLE hSession,
 
         if( xPalHandle != CK_INVALID_HANDLE )
         {
-            xResult = PKCS11_PAL_GetObjectValue( xPalHandle, &pucKeyData, &ulKeyDataLength, &xIsPrivate );
+            xResult = PKCS11_PAL_GetObjectValue( xPalHandle,
+                                                 &pucKeyData,
+                                                 &ulKeyDataLength,
+                                                 &xIsPrivate );
 
             if( xResult != CKR_OK )
             {
                 LogError( ( "Failed to initialize sign operation. Unable to "
-                            "retrieve value of private key for signing 0x%0lX.", ( unsigned long int ) xResult ) );
+                            "retrieve value of private key for signing 0x%0lX.",
+                            ( unsigned long int ) xResult ) );
                 xResult = CKR_KEY_HANDLE_INVALID;
             }
         }
@@ -4278,7 +4692,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_SignInit )( CK_SESSION_HANDLE hSession,
     if( xResult == CKR_OK )
     {
         /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
         if( xIsPrivate != ( CK_BBOOL ) CK_TRUE )
         {
@@ -4298,9 +4713,14 @@ CK_DECLARE_FUNCTION( CK_RV, C_SignInit )( CK_SESSION_HANDLE hSession,
                 case CKM_RSA_PKCS:
                 case CKM_ECDSA:
 
-                    if( ( pxSession->xSignKeyHandle == CK_INVALID_HANDLE ) || ( pxSession->xSignKeyHandle != hKey ) )
+                    if( ( pxSession->xSignKeyHandle == CK_INVALID_HANDLE ) ||
+                        ( pxSession->xSignKeyHandle != hKey ) )
                     {
-                        xResult = prvSignInitEC_RSAKeys( pxSession, pMechanism, hKey, pucKeyData, ulKeyDataLength );
+                        xResult = prvSignInitEC_RSAKeys( pxSession,
+                                                         pMechanism,
+                                                         hKey,
+                                                         pucKeyData,
+                                                         ulKeyDataLength );
                     }
                     else
                     {
@@ -4311,9 +4731,13 @@ CK_DECLARE_FUNCTION( CK_RV, C_SignInit )( CK_SESSION_HANDLE hSession,
 
                 case CKM_SHA256_HMAC:
 
-                    if( ( pxSession->xHMACKeyHandle == CK_INVALID_HANDLE ) || ( pxSession->xHMACKeyHandle != hKey ) )
+                    if( ( pxSession->xHMACKeyHandle == CK_INVALID_HANDLE ) ||
+                        ( pxSession->xHMACKeyHandle != hKey ) )
                     {
-                        xResult = prvSignInitSHA256HMAC( pxSession, hKey, pucKeyData, ulKeyDataLength );
+                        xResult = prvSignInitSHA256HMAC( pxSession,
+                                                         hKey,
+                                                         pucKeyData,
+                                                         ulKeyDataLength );
                     }
                     else
                     {
@@ -4324,9 +4748,13 @@ CK_DECLARE_FUNCTION( CK_RV, C_SignInit )( CK_SESSION_HANDLE hSession,
 
                 case CKM_AES_CMAC:
 
-                    if( ( pxSession->xCMACKeyHandle == CK_INVALID_HANDLE ) || ( pxSession->xCMACKeyHandle != hKey ) )
+                    if( ( pxSession->xCMACKeyHandle == CK_INVALID_HANDLE ) ||
+                        ( pxSession->xCMACKeyHandle != hKey ) )
                     {
-                        xResult = prvSignInitAESCMAC( pxSession, hKey, pucKeyData, ulKeyDataLength );
+                        xResult = prvSignInitAESCMAC( pxSession,
+                                                      hKey,
+                                                      pucKeyData,
+                                                      ulKeyDataLength );
                     }
                     else
                     {
@@ -4358,7 +4786,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_SignInit )( CK_SESSION_HANDLE hSession,
 
     if( xResult == CKR_OK )
     {
-        LogDebug( ( "Sign mechanism set to 0x%0lX.", ( unsigned long int ) pMechanism->mechanism ) );
+        LogDebug( ( "Sign mechanism set to 0x%0lX.",
+                    ( unsigned long int ) pMechanism->mechanism ) );
         pxSession->xOperationSignMechanism = pMechanism->mechanism;
     }
 
@@ -4378,29 +4807,27 @@ CK_DECLARE_FUNCTION( CK_RV, C_SignInit )( CK_SESSION_HANDLE hSession,
  *
  * @param[in] hSession                      Handle of a valid PKCS #11 session.
  * @param[in] pData                         Data to be signed.
- *                                          Note: Some applications may require this data to
- *                                          be hashed before passing to C_Sign().
+ *                                          Note: Some applications may require
+ * this data to be hashed before passing to C_Sign().
  * @param[in] ulDataLen                     Length of pucData, in bytes.
- * @param[out] pSignature                   Buffer where signature will be placed.
- *                                          Caller is responsible for allocating memory.
- *                                          Providing NULL for this input will cause
- *                                          pulSignatureLen to be updated for length of
- *                                          buffer required.
+ * @param[out] pSignature                   Buffer where signature will be
+ * placed. Caller is responsible for allocating memory. Providing NULL for this
+ * input will cause pulSignatureLen to be updated for length of buffer required.
  * @param[in,out] pulSignatureLen           Length of pucSignature buffer.
- *                                          If pucSignature is non-NULL, pulSignatureLen is
- *                                          updated to contain the actual signature length.
- *                                          If pucSignature is NULL, pulSignatureLen is
- *                                          updated to the buffer length required for signature
- *                                          data.
+ *                                          If pucSignature is non-NULL,
+ * pulSignatureLen is updated to contain the actual signature length. If
+ * pucSignature is NULL, pulSignatureLen is updated to the buffer length
+ * required for signature data.
  *
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_sign] */
-CK_DECLARE_FUNCTION( CK_RV, C_Sign )( CK_SESSION_HANDLE hSession,
-                                      CK_BYTE_PTR pData,
-                                      CK_ULONG ulDataLen,
-                                      CK_BYTE_PTR pSignature,
-                                      CK_ULONG_PTR pulSignatureLen )
+CK_DECLARE_FUNCTION( CK_RV, C_Sign )
+( CK_SESSION_HANDLE hSession,
+  CK_BYTE_PTR pData,
+  CK_ULONG ulDataLen,
+  CK_BYTE_PTR pSignature,
+  CK_ULONG_PTR pulSignatureLen )
 {
     P11Session_t * pxSessionObj = prvSessionPointerFromHandle( hSession );
     CK_RV xResult = prvCheckValidSessionAndModule( pxSessionObj );
@@ -4410,13 +4837,15 @@ CK_DECLARE_FUNCTION( CK_RV, C_Sign )( CK_SESSION_HANDLE hSession,
     size_t xSignatureBufferLength = 0;
     CK_BYTE_PTR pucSignatureBuffer = pSignature;
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     CK_BBOOL xSignatureGenerated = ( CK_BBOOL ) CK_FALSE;
 
     /* 8 bytes added to hold ASN.1 encoding information. */
     /* MISRA Ref 12.1.1 [Operator precedence] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-121 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-121 */
     /* coverity[misra_c_2012_rule_12_1_violation] */
     uint8_t ecSignature[ MBEDTLS_ECDSA_MAX_SIG_LEN( 256 ) ];
 
@@ -4442,7 +4871,9 @@ CK_DECLARE_FUNCTION( CK_RV, C_Sign )( CK_SESSION_HANDLE hSession,
         {
             xSignatureLength = pkcs11ECDSA_P256_SIGNATURE_LENGTH;
             /* MISRA Ref 12.1.1 [Operator precedence] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-121 */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-121
+             */
             /* coverity[misra_c_2012_rule_12_1_violation] */
             xSignatureBufferLength = MBEDTLS_ECDSA_MAX_SIG_LEN( 256 );
             pucSignatureBuffer = ecSignature;
@@ -4471,7 +4902,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_Sign )( CK_SESSION_HANDLE hSession,
 
     if( xResult == CKR_OK )
     {
-        /* Calling application is trying to determine length needed for signature buffer. */
+        /* Calling application is trying to determine length needed for
+         * signature buffer. */
         if( NULL != pSignature )
         {
             /* Check that the signature buffer is long enough. */
@@ -4489,67 +4921,89 @@ CK_DECLARE_FUNCTION( CK_RV, C_Sign )( CK_SESSION_HANDLE hSession,
             {
                 if( 0 == mbedtls_mutex_lock( &pxSessionObj->xSignMutex ) )
                 {
-                    if( pxSessionObj->xOperationSignMechanism == CKM_SHA256_HMAC )
+                    if( pxSessionObj->xOperationSignMechanism ==
+                        CKM_SHA256_HMAC )
                     {
-                        lMbedTLSResult = mbedtls_md_hmac_update( &pxSessionObj->xHMACSecretContext, pData, ulDataLen );
+                        lMbedTLSResult = mbedtls_md_hmac_update(
+                            &pxSessionObj->xHMACSecretContext,
+                            pData,
+                            ulDataLen );
 
                         if( lMbedTLSResult == 0 )
                         {
-                            lMbedTLSResult = mbedtls_md_hmac_finish( &pxSessionObj->xHMACSecretContext, pSignature );
+                            lMbedTLSResult = mbedtls_md_hmac_finish(
+                                &pxSessionObj->xHMACSecretContext,
+                                pSignature );
                         }
 
                         prvHMACCleanUp( pxSessionObj );
                     }
-                    else if( pxSessionObj->xOperationSignMechanism == CKM_AES_CMAC )
+                    else if( pxSessionObj->xOperationSignMechanism ==
+                             CKM_AES_CMAC )
                     {
-                        lMbedTLSResult = mbedtls_cipher_cmac_update( &pxSessionObj->xCMACSecretContext, pData, ulDataLen );
+                        lMbedTLSResult = mbedtls_cipher_cmac_update(
+                            &pxSessionObj->xCMACSecretContext,
+                            pData,
+                            ulDataLen );
 
                         if( lMbedTLSResult == 0 )
                         {
-                            lMbedTLSResult = mbedtls_cipher_cmac_finish( &pxSessionObj->xCMACSecretContext, pSignature );
+                            lMbedTLSResult = mbedtls_cipher_cmac_finish(
+                                &pxSessionObj->xCMACSecretContext,
+                                pSignature );
                         }
 
                         prvCMACCleanUp( pxSessionObj );
                     }
                     else
                     {
-                        /* Check that input data to be signed is the expected length. */
+                        /* Check that input data to be signed is the expected
+                         * length. */
                         if( xExpectedInputLength > ulDataLen )
                         {
-                            LogError( ( "Failed sign operation. The data buffer was "
-                                        "too small. Expected at least %lu bytes and received "
-                                        "%lu bytes.",
-                                        ( unsigned long int ) xExpectedInputLength,
-                                        ( unsigned long int ) ulDataLen ) );
+                            LogError(
+                                ( "Failed sign operation. The data buffer was "
+                                  "too small. Expected at least %lu bytes and "
+                                  "received "
+                                  "%lu bytes.",
+                                  ( unsigned long int ) xExpectedInputLength,
+                                  ( unsigned long int ) ulDataLen ) );
                             xResult = CKR_DATA_LEN_RANGE;
                         }
                         else
                         {
-                            LogDebug( ( "Ready to sign: xSignatureLength=%ld *pulSignatureLen=%ld", xSignatureLength, *pulSignatureLen ) );
+                            LogDebug( ( "Ready to sign: xSignatureLength=%ld "
+                                        "*pulSignatureLen=%ld",
+                                        xSignatureLength,
+                                        *pulSignatureLen ) );
 
-                            /* Per mbed TLS documentation, if using RSA, md_alg should
-                             * be MBEDTLS_MD_NONE. If ECDSA, md_alg should never be
-                             * MBEDTLS_MD_NONE. SHA-256 will be used for ECDSA for
-                             * consistency with the rest of the port.
-                             */
-                            #if MBEDTLS_VERSION_NUMBER < 0x03000000
-                                lMbedTLSResult = mbedtls_pk_sign( &pxSessionObj->xSignKey,
-                                                                  xHashType,
-                                                                  pData, ulDataLen,
-                                                                  pucSignatureBuffer,
-                                                                  &xSignatureBufferLength,
-                                                                  mbedtls_ctr_drbg_random,
-                                                                  &xP11Context.xMbedDrbgCtx );
-                            #else
-                                lMbedTLSResult = mbedtls_pk_sign( &pxSessionObj->xSignKey,
-                                                                  xHashType,
-                                                                  pData, ulDataLen,
-                                                                  pucSignatureBuffer,
-                                                                  xSignatureBufferLength,
-                                                                  &xSignatureBufferLength,
-                                                                  mbedtls_ctr_drbg_random,
-                                                                  &xP11Context.xMbedDrbgCtx );
-                            #endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
+/* Per mbed TLS documentation, if using RSA, md_alg should
+ * be MBEDTLS_MD_NONE. If ECDSA, md_alg should never be
+ * MBEDTLS_MD_NONE. SHA-256 will be used for ECDSA for
+ * consistency with the rest of the port.
+ */
+#if MBEDTLS_VERSION_NUMBER < 0x03000000
+                            lMbedTLSResult = mbedtls_pk_sign(
+                                &pxSessionObj->xSignKey,
+                                xHashType,
+                                pData,
+                                ulDataLen,
+                                pucSignatureBuffer,
+                                &xSignatureBufferLength,
+                                mbedtls_ctr_drbg_random,
+                                &xP11Context.xMbedDrbgCtx );
+#else
+                            lMbedTLSResult = mbedtls_pk_sign(
+                                &pxSessionObj->xSignKey,
+                                xHashType,
+                                pData,
+                                ulDataLen,
+                                pucSignatureBuffer,
+                                xSignatureBufferLength,
+                                &xSignatureBufferLength,
+                                mbedtls_ctr_drbg_random,
+                                &xP11Context.xMbedDrbgCtx );
+#endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
                         }
 
                         prvSignInitEC_RSACleanUp( pxSessionObj );
@@ -4557,21 +5011,26 @@ CK_DECLARE_FUNCTION( CK_RV, C_Sign )( CK_SESSION_HANDLE hSession,
 
                     if( ( xResult == CKR_OK ) && ( lMbedTLSResult != 0 ) )
                     {
-                        LogError( ( "Failed sign operation. mbed TLS error = %s : %s.",
-                                    mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                                    mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+                        LogError(
+                            ( "Failed sign operation. mbed TLS error = %s : "
+                              "%s.",
+                              mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                              mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
                         xResult = CKR_FUNCTION_FAILED;
                     }
 
                     ( void ) mbedtls_mutex_unlock( &pxSessionObj->xSignMutex );
                     /* MISRA Ref 10.5.1 [Essential type casting] */
-                    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+                    /* More details at:
+                     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+                     */
                     /* coverity[misra_c_2012_rule_10_5_violation] */
                     xSignatureGenerated = ( CK_BBOOL ) CK_TRUE;
                 }
                 else
                 {
-                    LogError( ( "Failed sign operation. Could not take xSignMutex." ) );
+                    LogError( (
+                        "Failed sign operation. Could not take xSignMutex." ) );
                     xResult = CKR_CANT_LOCK;
                 }
             }
@@ -4585,12 +5044,17 @@ CK_DECLARE_FUNCTION( CK_RV, C_Sign )( CK_SESSION_HANDLE hSession,
     if( xResult == CKR_OK )
     {
         /* MISRA Ref 10.5.1 [Essential type casting] */
-        /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+        /* More details at:
+         * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
         /* coverity[misra_c_2012_rule_10_5_violation] */
-        if( ( pxSessionObj->xOperationSignMechanism == CKM_ECDSA ) && ( xSignatureGenerated == ( CK_BBOOL ) CK_TRUE ) )
+        if( ( pxSessionObj->xOperationSignMechanism == CKM_ECDSA ) &&
+            ( xSignatureGenerated == ( CK_BBOOL ) CK_TRUE ) )
         {
-            /* If this an EC signature, reformat from ASN.1 encoded to 64-byte R & S components */
-            lMbedTLSResult = PKI_mbedTLSSignatureToPkcs11Signature( pSignature, ecSignature );
+            /* If this an EC signature, reformat from ASN.1 encoded to 64-byte R
+             * & S components */
+            lMbedTLSResult = PKI_mbedTLSSignatureToPkcs11Signature(
+                pSignature,
+                ecSignature );
 
             if( lMbedTLSResult != 0 )
             {
@@ -4607,7 +5071,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_Sign )( CK_SESSION_HANDLE hSession,
     }
 
     /* Complete the operation in the context. */
-    if( ( xResult != CKR_BUFFER_TOO_SMALL ) && ( xResult != CKR_SESSION_HANDLE_INVALID ) )
+    if( ( xResult != CKR_BUFFER_TOO_SMALL ) &&
+        ( xResult != CKR_SESSION_HANDLE_INVALID ) )
     {
         LogDebug( ( "Ended Sign operation." ) );
         pxSessionObj->xOperationSignMechanism = pkcs11NO_OPERATION;
@@ -4631,10 +5096,7 @@ static CK_RV prvVerifyInitSHA256HMAC( P11Session_t * pxSession,
 {
     CK_RV xResult = CKR_OK;
 
-    xResult = prvInitSHA256HMAC( pxSession,
-                                 hKey,
-                                 pucKeyData,
-                                 ulKeyDataLength );
+    xResult = prvInitSHA256HMAC( pxSession, hKey, pucKeyData, ulKeyDataLength );
 
     return xResult;
 }
@@ -4653,16 +5115,14 @@ static CK_RV prvVerifyInitAESCMAC( P11Session_t * pxSession,
 {
     CK_RV xResult = CKR_OK;
 
-    xResult = prvInitAESCMAC( pxSession,
-                              hKey,
-                              pucKeyData,
-                              ulKeyDataLength );
+    xResult = prvInitAESCMAC( pxSession, hKey, pucKeyData, ulKeyDataLength );
 
     return xResult;
 }
 
 /**
- * @brief Helper function for cleaning up a verify operation for an EC or RSA key.
+ * @brief Helper function for cleaning up a verify operation for an EC or RSA
+ * key.
  * @param[in] pxSession   Pointer to a valid PKCS #11 session.
  */
 static void prvVerifyInitEC_RSACleanUp( P11Session_t * pxSession )
@@ -4671,9 +5131,9 @@ static void prvVerifyInitEC_RSACleanUp( P11Session_t * pxSession )
     pxSession->xVerifyKeyHandle = CK_INVALID_HANDLE;
 }
 
-
 /**
- * @brief Helper function for initializing a verify operation for an EC or RSA key.
+ * @brief Helper function for initializing a verify operation for an EC or RSA
+ * key.
  * @param[in] pxSession   Pointer to a valid PKCS #11 session.
  * @param[in] pMechanism  EC/RSA mechanism.
  * @param[in] hKey        EC/RSA public key handle.
@@ -4691,7 +5151,9 @@ static CK_RV prvVerifyInitEC_RSAKeys( P11Session_t * pxSession,
     CK_RV xResult = CKR_KEY_HANDLE_INVALID;
 
     mbedtls_pk_init( &pxSession->xVerifyKey );
-    lMbedTLSResult = mbedtls_pk_parse_public_key( &pxSession->xVerifyKey, pucKeyData, ulKeyDataLength );
+    lMbedTLSResult = mbedtls_pk_parse_public_key( &pxSession->xVerifyKey,
+                                                  pucKeyData,
+                                                  ulKeyDataLength );
 
     if( 0 == lMbedTLSResult )
     {
@@ -4702,16 +5164,21 @@ static CK_RV prvVerifyInitEC_RSAKeys( P11Session_t * pxSession,
     /* If we fail to parse the public key, try again as a private key. */
     if( xResult != CKR_OK )
     {
-        #if MBEDTLS_VERSION_NUMBER < 0x03000000
-            lMbedTLSResult = mbedtls_pk_parse_key( &pxSession->xVerifyKey,
-                                                   pucKeyData, ulKeyDataLength,
-                                                   NULL, 0 );
-        #else
-            lMbedTLSResult = mbedtls_pk_parse_key( &pxSession->xVerifyKey,
-                                                   pucKeyData, ulKeyDataLength,
-                                                   NULL, 0,
-                                                   mbedtls_ctr_drbg_random, &xP11Context.xMbedDrbgCtx );
-        #endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
+#if MBEDTLS_VERSION_NUMBER < 0x03000000
+        lMbedTLSResult = mbedtls_pk_parse_key( &pxSession->xVerifyKey,
+                                               pucKeyData,
+                                               ulKeyDataLength,
+                                               NULL,
+                                               0 );
+#else
+        lMbedTLSResult = mbedtls_pk_parse_key( &pxSession->xVerifyKey,
+                                               pucKeyData,
+                                               ulKeyDataLength,
+                                               NULL,
+                                               0,
+                                               mbedtls_ctr_drbg_random,
+                                               &xP11Context.xMbedDrbgCtx );
+#endif /* MBEDTLS_VERSION_NUMBER < 0x03000000 */
 
         if( 0 == lMbedTLSResult )
         {
@@ -4734,12 +5201,14 @@ static CK_RV prvVerifyInitEC_RSAKeys( P11Session_t * pxSession,
     {
         xKeyType = mbedtls_pk_get_type( &pxSession->xVerifyKey );
 
-        if( ( pMechanism->mechanism == CKM_RSA_X_509 ) && ( xKeyType == MBEDTLS_PK_RSA ) )
+        if( ( pMechanism->mechanism == CKM_RSA_X_509 ) &&
+            ( xKeyType == MBEDTLS_PK_RSA ) )
         {
             /* Mechanisms align with the port. */
         }
         else if( ( pMechanism->mechanism == CKM_ECDSA ) &&
-                 ( ( xKeyType == MBEDTLS_PK_ECDSA ) || ( xKeyType == MBEDTLS_PK_ECKEY ) ) )
+                 ( ( xKeyType == MBEDTLS_PK_ECDSA ) ||
+                   ( xKeyType == MBEDTLS_PK_ECKEY ) ) )
         {
             /* Mechanisms align with the port. */
         }
@@ -4769,19 +5238,23 @@ static CK_RV prvVerifyInitEC_RSAKeys( P11Session_t * pxSession,
  *
  * @param[in] hSession                      Handle of a valid PKCS #11 session.
  * @param[in] pMechanism                    Mechanism used to verify signature.
- *                                          This port supports the following mechanisms:
- *                                          - CKM_RSA_X_509 for RSA verifications
- *                                          - CKM_ECDSA for elliptic curve verifications
- * @param[in] hKey                          The handle of the public key to be used for
- *                                          verification. Key must be compatible with the
- *                                          mechanism chosen by pxMechanism.
+ *                                          This port supports the following
+ * mechanisms:
+ *                                          - CKM_RSA_X_509 for RSA
+ * verifications
+ *                                          - CKM_ECDSA for elliptic curve
+ * verifications
+ * @param[in] hKey                          The handle of the public key to be
+ * used for verification. Key must be compatible with the mechanism chosen by
+ * pxMechanism.
  *
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_verifyinit] */
-CK_DECLARE_FUNCTION( CK_RV, C_VerifyInit )( CK_SESSION_HANDLE hSession,
-                                            CK_MECHANISM_PTR pMechanism,
-                                            CK_OBJECT_HANDLE hKey )
+CK_DECLARE_FUNCTION( CK_RV, C_VerifyInit )
+( CK_SESSION_HANDLE hSession,
+  CK_MECHANISM_PTR pMechanism,
+  CK_OBJECT_HANDLE hKey )
 {
     P11Session_t * pxSession;
     CK_RV xResult = CKR_OK;
@@ -4792,7 +5265,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_VerifyInit )( CK_SESSION_HANDLE hSession,
     CK_ULONG ulKeyDataLength = 0;
 
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     CK_BBOOL xIsPrivate = ( CK_BBOOL ) CK_TRUE;
 
@@ -4807,9 +5281,11 @@ CK_DECLARE_FUNCTION( CK_RV, C_VerifyInit )( CK_SESSION_HANDLE hSession,
     }
 
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
-    if( ( xResult == CKR_OK ) && ( prvOperationActive( pxSession ) == ( CK_BBOOL ) CK_TRUE ) )
+    if( ( xResult == CKR_OK ) &&
+        ( prvOperationActive( pxSession ) == ( CK_BBOOL ) CK_TRUE ) )
     {
         LogError( ( "Failed to initialize verify operation. An operation was "
                     "already active." ) );
@@ -4825,13 +5301,17 @@ CK_DECLARE_FUNCTION( CK_RV, C_VerifyInit )( CK_SESSION_HANDLE hSession,
 
         if( xPalHandle != CK_INVALID_HANDLE )
         {
-            xResult = PKCS11_PAL_GetObjectValue( xPalHandle, &pucKeyData, &ulKeyDataLength, &xIsPrivate );
+            xResult = PKCS11_PAL_GetObjectValue( xPalHandle,
+                                                 &pucKeyData,
+                                                 &ulKeyDataLength,
+                                                 &xIsPrivate );
 
             if( xResult != CKR_OK )
             {
-                LogError( ( "Failed to initialize verify operation. Unable to "
-                            "retrieve value of public key for verification 0x%0lX.",
-                            ( unsigned long int ) xResult ) );
+                LogError(
+                    ( "Failed to initialize verify operation. Unable to "
+                      "retrieve value of public key for verification 0x%0lX.",
+                      ( unsigned long int ) xResult ) );
                 xResult = CKR_KEY_HANDLE_INVALID;
             }
         }
@@ -4855,17 +5335,26 @@ CK_DECLARE_FUNCTION( CK_RV, C_VerifyInit )( CK_SESSION_HANDLE hSession,
                 case CKM_ECDSA:
 
                     /* MISRA Ref 10.5.1 [Essential type casting] */
-                    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+                    /* More details at:
+                     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+                     */
                     /* coverity[misra_c_2012_rule_10_5_violation] */
                     if( xIsPrivate != ( CK_BBOOL ) CK_FALSE )
                     {
-                        LogError( ( "Failed to initialize verify operation. Verify "
-                                    "operation attempted with private key." ) );
+                        LogError(
+                            ( "Failed to initialize verify operation. Verify "
+                              "operation attempted with private key." ) );
                         xResult = CKR_KEY_TYPE_INCONSISTENT;
                     }
-                    else if( ( pxSession->xVerifyKeyHandle == CK_INVALID_HANDLE ) || ( pxSession->xVerifyKeyHandle != hKey ) )
+                    else if( ( pxSession->xVerifyKeyHandle ==
+                               CK_INVALID_HANDLE ) ||
+                             ( pxSession->xVerifyKeyHandle != hKey ) )
                     {
-                        xResult = prvVerifyInitEC_RSAKeys( pxSession, pMechanism, hKey, pucKeyData, ulKeyDataLength );
+                        xResult = prvVerifyInitEC_RSAKeys( pxSession,
+                                                           pMechanism,
+                                                           hKey,
+                                                           pucKeyData,
+                                                           ulKeyDataLength );
                     }
                     else
                     {
@@ -4876,25 +5365,34 @@ CK_DECLARE_FUNCTION( CK_RV, C_VerifyInit )( CK_SESSION_HANDLE hSession,
 
                 case CKM_SHA256_HMAC:
 
-                    if( ( pxSession->xHMACKeyHandle == CK_INVALID_HANDLE ) || ( pxSession->xHMACKeyHandle != hKey ) )
+                    if( ( pxSession->xHMACKeyHandle == CK_INVALID_HANDLE ) ||
+                        ( pxSession->xHMACKeyHandle != hKey ) )
                     {
-                        xResult = prvVerifyInitSHA256HMAC( pxSession, hKey, pucKeyData, ulKeyDataLength );
+                        xResult = prvVerifyInitSHA256HMAC( pxSession,
+                                                           hKey,
+                                                           pucKeyData,
+                                                           ulKeyDataLength );
                     }
 
                     break;
 
                 case CKM_AES_CMAC:
 
-                    if( ( pxSession->xCMACKeyHandle == CK_INVALID_HANDLE ) || ( pxSession->xCMACKeyHandle != hKey ) )
+                    if( ( pxSession->xCMACKeyHandle == CK_INVALID_HANDLE ) ||
+                        ( pxSession->xCMACKeyHandle != hKey ) )
                     {
-                        xResult = prvVerifyInitAESCMAC( pxSession, hKey, pucKeyData, ulKeyDataLength );
+                        xResult = prvVerifyInitAESCMAC( pxSession,
+                                                        hKey,
+                                                        pucKeyData,
+                                                        ulKeyDataLength );
                     }
 
                     break;
 
                 default:
-                    LogError( ( "Failed to initialize verify operation. Received "
-                                "an unknown or invalid mechanism." ) );
+                    LogError(
+                        ( "Failed to initialize verify operation. Received "
+                          "an unknown or invalid mechanism." ) );
                     xResult = CKR_MECHANISM_INVALID;
                     break;
             }
@@ -4903,7 +5401,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_VerifyInit )( CK_SESSION_HANDLE hSession,
         }
         else
         {
-            LogError( ( "Verify operation failed. Could not take verify mutex." ) );
+            LogError(
+                ( "Verify operation failed. Could not take verify mutex." ) );
             xResult = CKR_CANT_LOCK;
         }
     }
@@ -4915,7 +5414,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_VerifyInit )( CK_SESSION_HANDLE hSession,
 
     if( xResult == CKR_OK )
     {
-        LogDebug( ( "Verify mechanism set to 0x%0lX.", ( unsigned long int ) pMechanism->mechanism ) );
+        LogDebug( ( "Verify mechanism set to 0x%0lX.",
+                    ( unsigned long int ) pMechanism->mechanism ) );
         pxSession->xOperationVerifyMechanism = pMechanism->mechanism;
     }
 
@@ -4934,9 +5434,9 @@ CK_DECLARE_FUNCTION( CK_RV, C_VerifyInit )( CK_SESSION_HANDLE hSession,
  *
  *
  * @param[in] hSession                      Handle of a valid PKCS #11 session.
- * @param[in] pData                         Data who's signature is to be verified.
- *                                          Note: In this implementation, this is generally
- *                                          expected to be the hash of the data.
+ * @param[in] pData                         Data who's signature is to be
+ * verified. Note: In this implementation, this is generally expected to be the
+ * hash of the data.
  * @param[in] ulDataLen                     Length of pucData.
  * @param[in] pSignature                    The signature to be verified.
  * @param[in] ulSignatureLen                Length of pucSignature in bytes.
@@ -4944,30 +5444,31 @@ CK_DECLARE_FUNCTION( CK_RV, C_VerifyInit )( CK_SESSION_HANDLE hSession,
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_verify] */
-CK_DECLARE_FUNCTION( CK_RV, C_Verify )( CK_SESSION_HANDLE hSession,
-                                        CK_BYTE_PTR pData,
-                                        CK_ULONG ulDataLen,
-                                        CK_BYTE_PTR pSignature,
-                                        CK_ULONG ulSignatureLen )
+CK_DECLARE_FUNCTION( CK_RV, C_Verify )
+( CK_SESSION_HANDLE hSession,
+  CK_BYTE_PTR pData,
+  CK_ULONG ulDataLen,
+  CK_BYTE_PTR pSignature,
+  CK_ULONG ulSignatureLen )
 {
     P11Session_t * pxSessionObj;
     int32_t lMbedTLSResult;
     CK_RV xResult = CKR_OK;
 
-    /* If using SHA512 a larger buffer is needed for the call to mbedtls_md_hmac_finish */
-    #if defined( MBEDTLS_SHA512_C )
-        CK_BYTE pxHMACBuffer[ pkcs11SHA256_DIGEST_LENGTH * 2 ] = { 0 };
-    #else
-        CK_BYTE pxHMACBuffer[ pkcs11SHA256_DIGEST_LENGTH ] = { 0 };
-    #endif
+/* If using SHA512 a larger buffer is needed for the call to
+ * mbedtls_md_hmac_finish */
+#if defined( MBEDTLS_SHA512_C )
+    CK_BYTE pxHMACBuffer[ pkcs11SHA256_DIGEST_LENGTH * 2 ] = { 0 };
+#else
+    CK_BYTE pxHMACBuffer[ pkcs11SHA256_DIGEST_LENGTH ] = { 0 };
+#endif
     CK_BYTE pxCMACBuffer[ MBEDTLS_AES_BLOCK_SIZE ] = { 0 };
 
     pxSessionObj = prvSessionPointerFromHandle( hSession );
     xResult = prvCheckValidSessionAndModule( pxSessionObj );
 
     /* Check parameters. */
-    if( ( NULL == pData ) ||
-        ( NULL == pSignature ) )
+    if( ( NULL == pData ) || ( NULL == pSignature ) )
     {
         LogError( ( "Failed verify operation. Received a NULL pointer." ) );
         xResult = CKR_ARGUMENTS_BAD;
@@ -5047,7 +5548,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_Verify )( CK_SESSION_HANDLE hSession,
                 /* Verify the signature. If a public key is present, use it. */
                 if( NULL != pxSessionObj->xVerifyKey.pk_ctx )
                 {
-                    lMbedTLSResult = mbedtls_pk_verify( &pxSessionObj->xVerifyKey,
+                    lMbedTLSResult = mbedtls_pk_verify( &pxSessionObj
+                                                             ->xVerifyKey,
                                                         MBEDTLS_MD_SHA256,
                                                         pData,
                                                         ulDataLen,
@@ -5056,10 +5558,11 @@ CK_DECLARE_FUNCTION( CK_RV, C_Verify )( CK_SESSION_HANDLE hSession,
 
                     if( 0 != lMbedTLSResult )
                     {
-                        LogError( ( "Failed verify operation. mbedtls_pk_verify "
-                                    "failed: mbed TLS error = %s : %s.",
-                                    mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                                    mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+                        LogError(
+                            ( "Failed verify operation. mbedtls_pk_verify "
+                              "failed: mbed TLS error = %s : %s.",
+                              mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                              mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
                         xResult = CKR_SIGNATURE_INVALID;
                     }
                 }
@@ -5076,53 +5579,69 @@ CK_DECLARE_FUNCTION( CK_RV, C_Verify )( CK_SESSION_HANDLE hSession,
             /* Perform an ECDSA verification. */
             else if( pxSessionObj->xOperationVerifyMechanism == CKM_ECDSA )
             {
-                /* An ECDSA signature is comprised of 2 components - R & S.  C_Sign returns them one after another. */
+                /* An ECDSA signature is comprised of 2 components - R & S.
+                 * C_Sign returns them one after another. */
                 mbedtls_ecdsa_context * pxEcdsaContext;
                 mbedtls_mpi xR;
                 mbedtls_mpi xS;
                 mbedtls_mpi_init( &xR );
                 mbedtls_mpi_init( &xS );
 
-                lMbedTLSResult = mbedtls_mpi_read_binary( &xR, &pSignature[ 0 ], 32 );
+                lMbedTLSResult = mbedtls_mpi_read_binary( &xR,
+                                                          &pSignature[ 0 ],
+                                                          32 );
 
                 if( lMbedTLSResult != 0 )
                 {
                     xResult = CKR_SIGNATURE_INVALID;
-                    LogError( ( "Failed verify operation. Failed to parse R in EC "
-                                "signature: mbed TLS error = %s : %s.",
-                                mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                                mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+                    LogError(
+                        ( "Failed verify operation. Failed to parse R in EC "
+                          "signature: mbed TLS error = %s : %s.",
+                          mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                          mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
                 }
                 else
                 {
-                    lMbedTLSResult = mbedtls_mpi_read_binary( &xS, &pSignature[ 32 ], 32 );
+                    lMbedTLSResult = mbedtls_mpi_read_binary( &xS,
+                                                              &pSignature[ 32 ],
+                                                              32 );
 
                     if( lMbedTLSResult != 0 )
                     {
                         xResult = CKR_SIGNATURE_INVALID;
-                        LogError( ( "Failed verify operation. Failed to parse S in "
-                                    "EC signature: mbed TLS error = %s : %s.",
-                                    mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                                    mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+                        LogError(
+                            ( "Failed verify operation. Failed to parse S in "
+                              "EC signature: mbed TLS error = %s : %s.",
+                              mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                              mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
                     }
                 }
 
                 if( xResult == CKR_OK )
                 {
-                    /* Verify the signature. If a public key is present, use it. */
+                    /* Verify the signature. If a public key is present, use it.
+                     */
                     if( NULL != pxSessionObj->xVerifyKey.pk_ctx )
                     {
                         pxEcdsaContext = pxSessionObj->xVerifyKey.pk_ctx;
-                        lMbedTLSResult = mbedtls_ecdsa_verify( &pxEcdsaContext->grp, pData, ulDataLen, &pxEcdsaContext->Q, &xR, &xS );
+                        lMbedTLSResult = mbedtls_ecdsa_verify(
+                            &pxEcdsaContext->grp,
+                            pData,
+                            ulDataLen,
+                            &pxEcdsaContext->Q,
+                            &xR,
+                            &xS );
                     }
 
                     if( lMbedTLSResult != 0 )
                     {
                         xResult = CKR_SIGNATURE_INVALID;
-                        LogError( ( "Failed verify operation. "
-                                    "mbedtls_ecdsa_verify failed: mbed TLS error = %s : %s.",
-                                    mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                                    mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+                        LogError(
+                            ( "Failed verify operation. "
+                              "mbedtls_ecdsa_verify failed: mbed TLS error = "
+                              "%s : %s.",
+                              mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                              mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
                     }
                 }
 
@@ -5130,36 +5649,49 @@ CK_DECLARE_FUNCTION( CK_RV, C_Verify )( CK_SESSION_HANDLE hSession,
                 mbedtls_mpi_free( &xS );
                 prvVerifyInitEC_RSACleanUp( pxSessionObj );
             }
-            else if( pxSessionObj->xOperationVerifyMechanism == CKM_SHA256_HMAC )
+            else if( pxSessionObj->xOperationVerifyMechanism ==
+                     CKM_SHA256_HMAC )
             {
-                lMbedTLSResult = mbedtls_md_hmac_update( &pxSessionObj->xHMACSecretContext, pData, ulDataLen );
+                lMbedTLSResult = mbedtls_md_hmac_update(
+                    &pxSessionObj->xHMACSecretContext,
+                    pData,
+                    ulDataLen );
 
                 if( lMbedTLSResult != 0 )
                 {
                     xResult = CKR_SIGNATURE_INVALID;
-                    LogError( ( "Failed verify operation. "
-                                "mbedtls_md_hmac_update failed: mbed TLS error = %s : %s.",
-                                mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                                mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+                    LogError(
+                        ( "Failed verify operation. "
+                          "mbedtls_md_hmac_update failed: mbed TLS error = %s "
+                          ": %s.",
+                          mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                          mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
                 }
                 else
                 {
-                    lMbedTLSResult = mbedtls_md_hmac_finish( &pxSessionObj->xHMACSecretContext, pxHMACBuffer );
+                    lMbedTLSResult = mbedtls_md_hmac_finish(
+                        &pxSessionObj->xHMACSecretContext,
+                        pxHMACBuffer );
 
                     if( lMbedTLSResult != 0 )
                     {
                         xResult = CKR_SIGNATURE_INVALID;
-                        LogError( ( "Failed verify operation. "
-                                    "mbedtls_md_hmac_finish failed: mbed TLS error = %s : %s.",
-                                    mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                                    mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+                        LogError(
+                            ( "Failed verify operation. "
+                              "mbedtls_md_hmac_finish failed: mbed TLS error = "
+                              "%s : %s.",
+                              mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                              mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
                     }
                     else
                     {
-                        if( 0 != memcmp( pxHMACBuffer, pSignature, pkcs11SHA256_DIGEST_LENGTH ) )
+                        if( 0 != memcmp( pxHMACBuffer,
+                                         pSignature,
+                                         pkcs11SHA256_DIGEST_LENGTH ) )
                         {
                             xResult = CKR_SIGNATURE_INVALID;
-                            LogError( ( "Failed verify operation. Signature was invalid." ) );
+                            LogError( ( "Failed verify operation. Signature "
+                                        "was invalid." ) );
                         }
                     }
                 }
@@ -5168,34 +5700,46 @@ CK_DECLARE_FUNCTION( CK_RV, C_Verify )( CK_SESSION_HANDLE hSession,
             }
             else if( pxSessionObj->xOperationVerifyMechanism == CKM_AES_CMAC )
             {
-                lMbedTLSResult = mbedtls_cipher_cmac_update( &pxSessionObj->xCMACSecretContext, pData, ulDataLen );
+                lMbedTLSResult = mbedtls_cipher_cmac_update(
+                    &pxSessionObj->xCMACSecretContext,
+                    pData,
+                    ulDataLen );
 
                 if( lMbedTLSResult != 0 )
                 {
                     xResult = CKR_SIGNATURE_INVALID;
-                    LogError( ( "Failed verify operation. "
-                                "mbedtls_md_hmac_update failed: mbed TLS error = %s : %s.",
-                                mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                                mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+                    LogError(
+                        ( "Failed verify operation. "
+                          "mbedtls_md_hmac_update failed: mbed TLS error = %s "
+                          ": %s.",
+                          mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                          mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
                 }
                 else
                 {
-                    lMbedTLSResult = mbedtls_cipher_cmac_finish( &pxSessionObj->xCMACSecretContext, pxCMACBuffer );
+                    lMbedTLSResult = mbedtls_cipher_cmac_finish(
+                        &pxSessionObj->xCMACSecretContext,
+                        pxCMACBuffer );
 
                     if( lMbedTLSResult != 0 )
                     {
                         xResult = CKR_SIGNATURE_INVALID;
-                        LogError( ( "Failed verify operation. "
-                                    "mbedtls_md_hmac_finish failed: mbed TLS error = %s : %s.",
-                                    mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                                    mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+                        LogError(
+                            ( "Failed verify operation. "
+                              "mbedtls_md_hmac_finish failed: mbed TLS error = "
+                              "%s : %s.",
+                              mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                              mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
                     }
                     else
                     {
-                        if( 0 != memcmp( pxCMACBuffer, pSignature, MBEDTLS_AES_BLOCK_SIZE ) )
+                        if( 0 != memcmp( pxCMACBuffer,
+                                         pSignature,
+                                         MBEDTLS_AES_BLOCK_SIZE ) )
                         {
                             xResult = CKR_SIGNATURE_INVALID;
-                            LogError( ( "Failed verify operation. Signature was invalid." ) );
+                            LogError( ( "Failed verify operation. Signature "
+                                        "was invalid." ) );
                         }
                     }
                 }
@@ -5204,7 +5748,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_Verify )( CK_SESSION_HANDLE hSession,
             }
             else
             {
-                LogError( ( "Failed verify operation. Received an unexpected mechanism." ) );
+                LogError( ( "Failed verify operation. Received an unexpected "
+                            "mechanism." ) );
             }
 
             ( void ) mbedtls_mutex_unlock( &pxSessionObj->xVerifyMutex );
@@ -5235,8 +5780,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_Verify )( CK_SESSION_HANDLE hSession,
  *
  * @param[out] ppxLabel                       Pointer to PKCS #11 label.
  * @param[in] pxAttribute                     PKCS #11 attribute to search.
- * @param[in] pulAttributeMap                 Flag to track whether all required attribute
- *                                            are in the key generation template.
+ * @param[in] pulAttributeMap                 Flag to track whether all required
+ * attribute are in the key generation template.
  * @return CKR_OK if successful.
  */
 static CK_RV prvCheckGenerateKeyPairPrivateTemplate( CK_ATTRIBUTE ** ppxLabel,
@@ -5245,23 +5790,26 @@ static CK_RV prvCheckGenerateKeyPairPrivateTemplate( CK_ATTRIBUTE ** ppxLabel,
 {
     CK_RV xResult = CKR_OK;
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     CK_BBOOL xBool = ( CK_BBOOL ) CK_FALSE;
     CK_ULONG xTemp = 0;
 
     switch( pxAttribute->type )
     {
-        case ( CKA_LABEL ):
+        case( CKA_LABEL ):
             *ppxLabel = pxAttribute;
             *pulAttributeMap |= LABEL_IN_TEMPLATE;
             break;
 
-        case ( CKA_KEY_TYPE ):
+        case( CKA_KEY_TYPE ):
 
             if( pxAttribute->ulValueLen == sizeof( CK_ULONG ) )
             {
-                ( void ) memcpy( &xTemp, pxAttribute->pValue, sizeof( CK_ULONG ) );
+                ( void ) memcpy( &xTemp,
+                                 pxAttribute->pValue,
+                                 sizeof( CK_ULONG ) );
             }
 
             if( xTemp != CKK_EC )
@@ -5273,20 +5821,25 @@ static CK_RV prvCheckGenerateKeyPairPrivateTemplate( CK_ATTRIBUTE ** ppxLabel,
 
             break;
 
-        case ( CKA_SIGN ):
+        case( CKA_SIGN ):
 
             if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
             {
-                ( void ) memcpy( &xBool, pxAttribute->pValue, sizeof( CK_BBOOL ) );
+                ( void ) memcpy( &xBool,
+                                 pxAttribute->pValue,
+                                 sizeof( CK_BBOOL ) );
             }
 
             /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
             /* coverity[misra_c_2012_rule_10_5_violation] */
             if( xBool != ( CK_BBOOL ) CK_TRUE )
             {
-                LogError( ( "Failed parsing private key template. Generating "
-                            "private keys that cannot sign is not supported." ) );
+                LogError(
+                    ( "Failed parsing private key template. Generating "
+                      "private keys that cannot sign is not supported." ) );
                 xResult = CKR_TEMPLATE_INCONSISTENT;
             }
 
@@ -5294,20 +5847,25 @@ static CK_RV prvCheckGenerateKeyPairPrivateTemplate( CK_ATTRIBUTE ** ppxLabel,
             *pulAttributeMap |= SIGN_IN_TEMPLATE;
             break;
 
-        case ( CKA_PRIVATE ):
+        case( CKA_PRIVATE ):
 
             if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
             {
-                ( void ) memcpy( &xBool, pxAttribute->pValue, sizeof( CK_BBOOL ) );
+                ( void ) memcpy( &xBool,
+                                 pxAttribute->pValue,
+                                 sizeof( CK_BBOOL ) );
             }
 
             /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
             /* coverity[misra_c_2012_rule_10_5_violation] */
             if( xBool != ( CK_BBOOL ) CK_TRUE )
             {
-                LogError( ( "Failed parsing private key template. Private must "
-                            "be set to true in order to generate a private key." ) );
+                LogError(
+                    ( "Failed parsing private key template. Private must "
+                      "be set to true in order to generate a private key." ) );
                 xResult = CKR_TEMPLATE_INCONSISTENT;
             }
 
@@ -5315,21 +5873,26 @@ static CK_RV prvCheckGenerateKeyPairPrivateTemplate( CK_ATTRIBUTE ** ppxLabel,
             *pulAttributeMap |= PRIVATE_IN_TEMPLATE;
             break;
 
-        case ( CKA_TOKEN ):
+        case( CKA_TOKEN ):
 
             if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
             {
-                ( void ) memcpy( &xBool, pxAttribute->pValue, sizeof( CK_BBOOL ) );
+                ( void ) memcpy( &xBool,
+                                 pxAttribute->pValue,
+                                 sizeof( CK_BBOOL ) );
             }
 
             /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
             /* coverity[misra_c_2012_rule_10_5_violation] */
             if( xBool != ( CK_BBOOL ) CK_TRUE )
             {
-                LogError( ( "Failed parsing private key template. Generating "
-                            "private keys that are false for attribute CKA_TOKEN "
-                            "is not supported." ) );
+                LogError(
+                    ( "Failed parsing private key template. Generating "
+                      "private keys that are false for attribute CKA_TOKEN "
+                      "is not supported." ) );
                 xResult = CKR_TEMPLATE_INCONSISTENT;
             }
 
@@ -5352,8 +5915,8 @@ static CK_RV prvCheckGenerateKeyPairPrivateTemplate( CK_ATTRIBUTE ** ppxLabel,
  *
  * @param[out] ppxLabel                       Pointer to PKCS #11 label.
  * @param[in] pxAttribute                     PKCS #11 attribute to search.
- * @param[in] pulAttributeMap                 Flag to track whether all required attribute
- *                                            are in the key generation template.
+ * @param[in] pulAttributeMap                 Flag to track whether all required
+ * attribute are in the key generation template.
  *
  * @return CKR_OK if successful.
  */
@@ -5363,7 +5926,8 @@ static CK_RV prvCheckGenerateKeyPairPublicTemplate( CK_ATTRIBUTE ** ppxLabel,
 {
     CK_RV xResult = CKR_OK;
     /* MISRA Ref 10.5.1 [Essential type casting] */
-    /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+    /* More details at:
+     * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
     /* coverity[misra_c_2012_rule_10_5_violation] */
     CK_BBOOL xBool = ( CK_BBOOL ) CK_TRUE;
     CK_KEY_TYPE xKeyType = 0xFFFFFFFFUL;
@@ -5372,16 +5936,18 @@ static CK_RV prvCheckGenerateKeyPairPublicTemplate( CK_ATTRIBUTE ** ppxLabel,
 
     switch( pxAttribute->type )
     {
-        case ( CKA_LABEL ):
+        case( CKA_LABEL ):
             *ppxLabel = pxAttribute;
             *pulAttributeMap |= LABEL_IN_TEMPLATE;
             break;
 
-        case ( CKA_KEY_TYPE ):
+        case( CKA_KEY_TYPE ):
 
             if( pxAttribute->ulValueLen == sizeof( CK_KEY_TYPE ) )
             {
-                ( void ) memcpy( &xKeyType, ( CK_KEY_TYPE * ) pxAttribute->pValue, sizeof( CK_KEY_TYPE ) );
+                ( void ) memcpy( &xKeyType,
+                                 ( CK_KEY_TYPE * ) pxAttribute->pValue,
+                                 sizeof( CK_KEY_TYPE ) );
             }
 
             if( xKeyType != CKK_EC )
@@ -5393,15 +5959,17 @@ static CK_RV prvCheckGenerateKeyPairPublicTemplate( CK_ATTRIBUTE ** ppxLabel,
 
             break;
 
-        case ( CKA_EC_PARAMS ):
+        case( CKA_EC_PARAMS ):
             pxEcAttVal = ( CK_BYTE * ) pxAttribute->pValue;
 
             if( pxAttribute->ulValueLen == sizeof( pxEcParams ) )
             {
-                if( memcmp( pxEcParams, pxEcAttVal, sizeof( pxEcParams ) ) != 0 )
+                if( memcmp( pxEcParams, pxEcAttVal, sizeof( pxEcParams ) ) !=
+                    0 )
                 {
-                    LogError( ( "Failed parsing public key template. Only P-256 key "
-                                "generation is supported." ) );
+                    LogError(
+                        ( "Failed parsing public key template. Only P-256 key "
+                          "generation is supported." ) );
                     xResult = CKR_TEMPLATE_INCONSISTENT;
                 }
             }
@@ -5409,36 +5977,45 @@ static CK_RV prvCheckGenerateKeyPairPublicTemplate( CK_ATTRIBUTE ** ppxLabel,
             *pulAttributeMap |= EC_PARAMS_IN_TEMPLATE;
             break;
 
-        case ( CKA_VERIFY ):
+        case( CKA_VERIFY ):
 
             if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
             {
-                ( void ) memcpy( &xBool, pxAttribute->pValue, sizeof( CK_BBOOL ) );
+                ( void ) memcpy( &xBool,
+                                 pxAttribute->pValue,
+                                 sizeof( CK_BBOOL ) );
             }
 
             /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
             /* coverity[misra_c_2012_rule_10_5_violation] */
             if( xBool != ( CK_BBOOL ) CK_TRUE )
             {
-                LogError( ( "Failed parsing public key template. Generating public "
-                            "keys that have a value of CK_FALSE for attribute "
-                            "CKA_VERIFY is not supported." ) );
+                LogError(
+                    ( "Failed parsing public key template. Generating public "
+                      "keys that have a value of CK_FALSE for attribute "
+                      "CKA_VERIFY is not supported." ) );
                 xResult = CKR_TEMPLATE_INCONSISTENT;
             }
 
             *pulAttributeMap |= VERIFY_IN_TEMPLATE;
             break;
 
-        case ( CKA_TOKEN ):
+        case( CKA_TOKEN ):
 
             if( pxAttribute->ulValueLen == sizeof( CK_BBOOL ) )
             {
-                ( void ) memcpy( &xBool, pxAttribute->pValue, sizeof( CK_BBOOL ) );
+                ( void ) memcpy( &xBool,
+                                 pxAttribute->pValue,
+                                 sizeof( CK_BBOOL ) );
             }
 
             /* MISRA Ref 10.5.1 [Essential type casting] */
-            /* More details at: https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105 */
+            /* More details at:
+             * https://github.com/FreeRTOS/corePKCS11/blob/main/MISRA.md#rule-105
+             */
             /* coverity[misra_c_2012_rule_10_5_violation] */
             if( xBool != ( CK_BBOOL ) CK_TRUE )
             {
@@ -5455,7 +6032,6 @@ static CK_RV prvCheckGenerateKeyPairPublicTemplate( CK_ATTRIBUTE ** ppxLabel,
     return xResult;
 }
 
-
 /**
  * @brief Generates a public-key/private-key pair.
  *
@@ -5463,48 +6039,52 @@ static CK_RV prvCheckGenerateKeyPairPublicTemplate( CK_ATTRIBUTE ** ppxLabel,
  * key pairs.
  *
  * @param[in] hSession                      Handle of a valid PKCS #11 session.
- * @param[in] pMechanism                    Pointer to a mechanism. At this time,
- *                                          CKM_EC_KEY_PAIR_GEN is the only supported mechanism.
- * @param[in] pPublicKeyTemplate           Pointer to a list of attributes that the generated
- *                                          public key should possess.
- *                                          Public key template must have the following attributes:
+ * @param[in] pMechanism                    Pointer to a mechanism. At this
+ * time, CKM_EC_KEY_PAIR_GEN is the only supported mechanism.
+ * @param[in] pPublicKeyTemplate           Pointer to a list of attributes that
+ * the generated public key should possess. Public key template must have the
+ * following attributes:
  *                                          - CKA_LABEL
- *                                              - Label should be no longer than pkcs11configMAX_LABEL_LENGTH
- *                                              and must be supported by port's PKCS #11 PAL.
+ *                                              - Label should be no longer than
+ * pkcs11configMAX_LABEL_LENGTH and must be supported by port's PKCS #11 PAL.
  *                                          - CKA_EC_PARAMS
- *                                              - Must equal pkcs11DER_ENCODED_OID_P256.
- *                                              Only P-256 keys are supported.
+ *                                              - Must equal
+ * pkcs11DER_ENCODED_OID_P256. Only P-256 keys are supported.
  *                                          - CKA_VERIFY
- *                                              - Must be set to true.  Only public keys used
- *                                              for verification are supported.
- *                                          Public key templates may have the following attributes:
+ *                                              - Must be set to true.  Only
+ * public keys used for verification are supported. Public key templates may
+ * have the following attributes:
  *                                          - CKA_KEY_TYPE
- *                                              - Must be set to CKK_EC. Only elliptic curve key
- *                                              generation is supported.
+ *                                              - Must be set to CKK_EC. Only
+ * elliptic curve key generation is supported.
  *                                          - CKA_TOKEN
  *                                              - Must be set to CK_TRUE.
- * @param[in] ulPublicKeyAttributeCount     Number of attributes in pPublicKeyTemplate.
- * @param[in] pPrivateKeyTemplate          Pointer to a list of attributes that the generated
- *                                          private key should possess.
- *                                          Private key template must have the following attributes:
+ * @param[in] ulPublicKeyAttributeCount     Number of attributes in
+ * pPublicKeyTemplate.
+ * @param[in] pPrivateKeyTemplate          Pointer to a list of attributes that
+ * the generated private key should possess. Private key template must have the
+ * following attributes:
  *                                          - CKA_LABEL
- *                                              - Label should be no longer than pkcs11configMAX_LABEL_LENGTH
- *                                              and must be supported by port's PKCS #11 PAL.
+ *                                              - Label should be no longer than
+ * pkcs11configMAX_LABEL_LENGTH and must be supported by port's PKCS #11 PAL.
  *                                          - CKA_PRIVATE
  *                                              - Must be set to true.
  *                                          - CKA_SIGN
- *                                              - Must be set to true.  Only private keys used
- *                                              for signing are supported.
- *                                          Private key template may have the following attributes:
+ *                                              - Must be set to true.  Only
+ * private keys used for signing are supported. Private key template may have
+ * the following attributes:
  *                                          - CKA_KEY_TYPE
- *                                              - Must be set to CKK_EC. Only elliptic curve key
- *                                              generation is supported.
+ *                                              - Must be set to CKK_EC. Only
+ * elliptic curve key generation is supported.
  *                                          - CKA_TOKEN
  *                                              - Must be set to CK_TRUE.
  *
- * @param[in] ulPrivateKeyAttributeCount    Number of attributes in pPrivateKeyTemplate.
- * @param[out] phPublicKey                  Pointer to the handle of the public key to be created.
- * @param[out] phPrivateKey                 Pointer to the handle of the private key to be created.
+ * @param[in] ulPrivateKeyAttributeCount    Number of attributes in
+ * pPrivateKeyTemplate.
+ * @param[out] phPublicKey                  Pointer to the handle of the public
+ * key to be created.
+ * @param[out] phPrivateKey                 Pointer to the handle of the private
+ * key to be created.
  *
  * \note Not all attributes specified by the PKCS #11 standard are supported.
  * \note CKA_LOCAL attribute is not supported.
@@ -5512,14 +6092,15 @@ static CK_RV prvCheckGenerateKeyPairPublicTemplate( CK_ATTRIBUTE ** ppxLabel,
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_generatekeypair] */
-CK_DECLARE_FUNCTION( CK_RV, C_GenerateKeyPair )( CK_SESSION_HANDLE hSession,
-                                                 CK_MECHANISM_PTR pMechanism,
-                                                 CK_ATTRIBUTE_PTR pPublicKeyTemplate,
-                                                 CK_ULONG ulPublicKeyAttributeCount,
-                                                 CK_ATTRIBUTE_PTR pPrivateKeyTemplate,
-                                                 CK_ULONG ulPrivateKeyAttributeCount,
-                                                 CK_OBJECT_HANDLE_PTR phPublicKey,
-                                                 CK_OBJECT_HANDLE_PTR phPrivateKey )
+CK_DECLARE_FUNCTION( CK_RV, C_GenerateKeyPair )
+( CK_SESSION_HANDLE hSession,
+  CK_MECHANISM_PTR pMechanism,
+  CK_ATTRIBUTE_PTR pPublicKeyTemplate,
+  CK_ULONG ulPublicKeyAttributeCount,
+  CK_ATTRIBUTE_PTR pPrivateKeyTemplate,
+  CK_ULONG ulPrivateKeyAttributeCount,
+  CK_OBJECT_HANDLE_PTR phPublicKey,
+  CK_OBJECT_HANDLE_PTR phPrivateKey )
 {
     uint8_t * pucDerFile = mbedtls_calloc( 1, pkcs11KEY_GEN_MAX_DER_SIZE );
     int32_t lMbedTLSResult = 0;
@@ -5529,28 +6110,30 @@ CK_DECLARE_FUNCTION( CK_RV, C_GenerateKeyPair )( CK_SESSION_HANDLE hSession,
     CK_ATTRIBUTE_PTR pxPublicLabel = NULL;
     CK_OBJECT_HANDLE xPalPublic = CK_INVALID_HANDLE;
     CK_OBJECT_HANDLE xPalPrivate = CK_INVALID_HANDLE;
-    uint32_t xPublicRequiredAttributeMap = ( LABEL_IN_TEMPLATE | EC_PARAMS_IN_TEMPLATE | VERIFY_IN_TEMPLATE );
-    uint32_t xPrivateRequiredAttributeMap = ( LABEL_IN_TEMPLATE | PRIVATE_IN_TEMPLATE | SIGN_IN_TEMPLATE );
+    uint32_t xPublicRequiredAttributeMap = ( LABEL_IN_TEMPLATE |
+                                             EC_PARAMS_IN_TEMPLATE |
+                                             VERIFY_IN_TEMPLATE );
+    uint32_t xPrivateRequiredAttributeMap = ( LABEL_IN_TEMPLATE |
+                                              PRIVATE_IN_TEMPLATE |
+                                              SIGN_IN_TEMPLATE );
     uint32_t xAttributeMap = 0;
     CK_RV xAddObjectListResult = CKR_OK;
 
     const P11Session_t * pxSession = prvSessionPointerFromHandle( hSession );
     CK_RV xResult = prvCheckValidSessionAndModule( pxSession );
 
-    #ifdef pkcs11configSUPPRESS_ECDSA_MECHANISM
-        if( xResult == CKR_OK )
-        {
-            LogDebug( ( "ECDSA Mechanism is suppressed on this port." ) );
-            xResult = CKR_MECHANISM_INVALID;
-        }
-    #endif
+#ifdef pkcs11configSUPPRESS_ECDSA_MECHANISM
+    if( xResult == CKR_OK )
+    {
+        LogDebug( ( "ECDSA Mechanism is suppressed on this port." ) );
+        xResult = CKR_MECHANISM_INVALID;
+    }
+#endif
 
     if( xResult == CKR_OK )
     {
-        if( ( pPublicKeyTemplate == NULL ) ||
-            ( pPrivateKeyTemplate == NULL ) ||
-            ( phPublicKey == NULL ) ||
-            ( phPrivateKey == NULL ) ||
+        if( ( pPublicKeyTemplate == NULL ) || ( pPrivateKeyTemplate == NULL ) ||
+            ( phPublicKey == NULL ) || ( phPrivateKey == NULL ) ||
             ( pMechanism == NULL ) )
         {
             LogError( ( "Failed generating a key pair. One of the arguments "
@@ -5564,7 +6147,8 @@ CK_DECLARE_FUNCTION( CK_RV, C_GenerateKeyPair )( CK_SESSION_HANDLE hSession,
         if( pucDerFile == NULL )
         {
             LogError( ( "Failed generating a key pair. Could not allocated a "
-                        "buffer of size %u bytes.", ( unsigned int ) pkcs11KEY_GEN_MAX_DER_SIZE ) );
+                        "buffer of size %u bytes.",
+                        ( unsigned int ) pkcs11KEY_GEN_MAX_DER_SIZE ) );
             xResult = CKR_HOST_MEMORY;
         }
     }
@@ -5573,8 +6157,9 @@ CK_DECLARE_FUNCTION( CK_RV, C_GenerateKeyPair )( CK_SESSION_HANDLE hSession,
     {
         if( CKM_EC_KEY_PAIR_GEN != pMechanism->mechanism )
         {
-            LogError( ( "Failed generating a key pair. CKM_EC_KEY_PAIR_GEN is "
-                        "the only valid key generation mechanism currently." ) );
+            LogError(
+                ( "Failed generating a key pair. CKM_EC_KEY_PAIR_GEN is "
+                  "the only valid key generation mechanism currently." ) );
             xResult = CKR_MECHANISM_INVALID;
         }
     }
@@ -5583,9 +6168,10 @@ CK_DECLARE_FUNCTION( CK_RV, C_GenerateKeyPair )( CK_SESSION_HANDLE hSession,
     {
         for( ulIndex = 0; ulIndex < ulPrivateKeyAttributeCount; ++ulIndex )
         {
-            xResult = prvCheckGenerateKeyPairPrivateTemplate( &pxPrivateLabel,
-                                                              &pPrivateKeyTemplate[ ulIndex ],
-                                                              &xAttributeMap );
+            xResult = prvCheckGenerateKeyPairPrivateTemplate(
+                &pxPrivateLabel,
+                &pPrivateKeyTemplate[ ulIndex ],
+                &xAttributeMap );
 
             if( xResult != CKR_OK )
             {
@@ -5593,7 +6179,9 @@ CK_DECLARE_FUNCTION( CK_RV, C_GenerateKeyPair )( CK_SESSION_HANDLE hSession,
             }
         }
 
-        if( ( xResult == CKR_OK ) && ( ( xAttributeMap & xPrivateRequiredAttributeMap ) != xPrivateRequiredAttributeMap ) )
+        if( ( xResult == CKR_OK ) &&
+            ( ( xAttributeMap & xPrivateRequiredAttributeMap ) !=
+              xPrivateRequiredAttributeMap ) )
         {
             LogError( ( "Failed generating a key pair. Attributes were missing "
                         "in the private key template." ) );
@@ -5607,9 +6195,10 @@ CK_DECLARE_FUNCTION( CK_RV, C_GenerateKeyPair )( CK_SESSION_HANDLE hSession,
 
         for( ulIndex = 0; ulIndex < ulPublicKeyAttributeCount; ++ulIndex )
         {
-            xResult = prvCheckGenerateKeyPairPublicTemplate( &pxPublicLabel,
-                                                             &pPublicKeyTemplate[ ulIndex ],
-                                                             &xAttributeMap );
+            xResult = prvCheckGenerateKeyPairPublicTemplate(
+                &pxPublicLabel,
+                &pPublicKeyTemplate[ ulIndex ],
+                &xAttributeMap );
 
             if( xResult != CKR_OK )
             {
@@ -5617,7 +6206,9 @@ CK_DECLARE_FUNCTION( CK_RV, C_GenerateKeyPair )( CK_SESSION_HANDLE hSession,
             }
         }
 
-        if( ( xResult == CKR_OK ) && ( ( xAttributeMap & xPublicRequiredAttributeMap ) != xPublicRequiredAttributeMap ) )
+        if( ( xResult == CKR_OK ) &&
+            ( ( xAttributeMap & xPublicRequiredAttributeMap ) !=
+              xPublicRequiredAttributeMap ) )
         {
             LogError( ( "Failed generating a key pair. Attributes were missing "
                         "in the public key template." ) );
@@ -5628,14 +6219,17 @@ CK_DECLARE_FUNCTION( CK_RV, C_GenerateKeyPair )( CK_SESSION_HANDLE hSession,
     if( xResult == CKR_OK )
     {
         mbedtls_pk_init( &xCtx );
-        lMbedTLSResult = mbedtls_pk_setup( &xCtx, mbedtls_pk_info_from_type( MBEDTLS_PK_ECKEY ) );
+        lMbedTLSResult = mbedtls_pk_setup( &xCtx,
+                                           mbedtls_pk_info_from_type(
+                                               MBEDTLS_PK_ECKEY ) );
 
         if( lMbedTLSResult != 0 )
         {
-            LogError( ( "Failed generating a key pair. mbedtls_pk_setup failed: "
-                        "mbed TLS error = %s : %s.",
-                        mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                        mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+            LogError(
+                ( "Failed generating a key pair. mbedtls_pk_setup failed: "
+                  "mbed TLS error = %s : %s.",
+                  mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                  mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
             xResult = CKR_FUNCTION_FAILED;
         }
         else
@@ -5663,19 +6257,28 @@ CK_DECLARE_FUNCTION( CK_RV, C_GenerateKeyPair )( CK_SESSION_HANDLE hSession,
 
     if( xResult == CKR_OK )
     {
-        lMbedTLSResult = mbedtls_pk_write_pubkey_der( &xCtx, pucDerFile, pkcs11KEY_GEN_MAX_DER_SIZE );
+        lMbedTLSResult = mbedtls_pk_write_pubkey_der(
+            &xCtx,
+            pucDerFile,
+            pkcs11KEY_GEN_MAX_DER_SIZE );
 
         if( ( lMbedTLSResult > 0 ) &&
             ( lMbedTLSResult <= pkcs11KEY_GEN_MAX_DER_SIZE ) )
         {
-            xPalPublic = PKCS11_PAL_SaveObject( pxPublicLabel, pucDerFile + pkcs11KEY_GEN_MAX_DER_SIZE - lMbedTLSResult, ( uint32_t ) lMbedTLSResult );
+            xPalPublic = PKCS11_PAL_SaveObject( pxPublicLabel,
+                                                pucDerFile +
+                                                    pkcs11KEY_GEN_MAX_DER_SIZE -
+                                                    lMbedTLSResult,
+                                                ( uint32_t ) lMbedTLSResult );
             LogDebug( ( "PKCS11_PAL_SaveObject returned a %lu PAL handle value "
-                        "for the public key.", ( unsigned long int ) xPalPublic ) );
+                        "for the public key.",
+                        ( unsigned long int ) xPalPublic ) );
         }
         else
         {
             LogError( ( "Failed generating a key pair. "
-                        "mbedtls_pk_write_pubkey_der failed: mbed TLS error = %s : %s.",
+                        "mbedtls_pk_write_pubkey_der failed: mbed TLS error = "
+                        "%s : %s.",
                         mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
                         mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
             xResult = CKR_GENERAL_ERROR;
@@ -5684,64 +6287,90 @@ CK_DECLARE_FUNCTION( CK_RV, C_GenerateKeyPair )( CK_SESSION_HANDLE hSession,
 
     if( xResult == CKR_OK )
     {
-        lMbedTLSResult = mbedtls_pk_write_key_der( &xCtx, pucDerFile, pkcs11KEY_GEN_MAX_DER_SIZE );
+        lMbedTLSResult = mbedtls_pk_write_key_der( &xCtx,
+                                                   pucDerFile,
+                                                   pkcs11KEY_GEN_MAX_DER_SIZE );
 
         if( ( lMbedTLSResult > 0 ) &&
             ( lMbedTLSResult <= pkcs11KEY_GEN_MAX_DER_SIZE ) )
         {
-            xPalPrivate = PKCS11_PAL_SaveObject( pxPrivateLabel, pucDerFile + pkcs11KEY_GEN_MAX_DER_SIZE - lMbedTLSResult, ( uint32_t ) lMbedTLSResult );
+            xPalPrivate = PKCS11_PAL_SaveObject( pxPrivateLabel,
+                                                 pucDerFile +
+                                                     pkcs11KEY_GEN_MAX_DER_SIZE -
+                                                     lMbedTLSResult,
+                                                 ( uint32_t ) lMbedTLSResult );
             LogDebug( ( "PKCS11_PAL_SaveObject returned a %lu PAL handle value "
-                        "for the private key.", ( unsigned long int ) xPalPrivate ) );
+                        "for the private key.",
+                        ( unsigned long int ) xPalPrivate ) );
         }
         else
         {
-            LogError( ( "Failed generating a key pair. mbedtls_pk_write_key_der "
-                        "failed: mbed TLS error = %s : %s.",
-                        mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                        mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+            LogError(
+                ( "Failed generating a key pair. mbedtls_pk_write_key_der "
+                  "failed: mbed TLS error = %s : %s.",
+                  mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                  mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
             xResult = CKR_GENERAL_ERROR;
         }
     }
 
-    if( ( xPalPublic != CK_INVALID_HANDLE ) && ( xPalPrivate != CK_INVALID_HANDLE ) )
+    if( ( xPalPublic != CK_INVALID_HANDLE ) &&
+        ( xPalPrivate != CK_INVALID_HANDLE ) )
     {
-        xAddObjectListResult = prvAddObjectToList( xPalPrivate, phPrivateKey, pxPrivateLabel->pValue, pxPrivateLabel->ulValueLen );
+        xAddObjectListResult = prvAddObjectToList( xPalPrivate,
+                                                   phPrivateKey,
+                                                   pxPrivateLabel->pValue,
+                                                   pxPrivateLabel->ulValueLen );
 
         if( xAddObjectListResult == CKR_OK )
         {
-            xAddObjectListResult = prvAddObjectToList( xPalPublic, phPublicKey, pxPublicLabel->pValue, pxPublicLabel->ulValueLen );
+            xAddObjectListResult = prvAddObjectToList( xPalPublic,
+                                                       phPublicKey,
+                                                       pxPublicLabel->pValue,
+                                                       pxPublicLabel
+                                                           ->ulValueLen );
         }
 
         if( xAddObjectListResult != CKR_OK )
         {
-            LogError( ( "Could not add private key to object list failed with (0x%0lX). Cleaning up PAL objects.", xResult ) );
+            LogError( ( "Could not add private key to object list failed with "
+                        "(0x%0lX). Cleaning up PAL objects.",
+                        xResult ) );
 
             xResult = PKCS11_PAL_DestroyObject( xPalPrivate );
 
             if( xResult != CKR_OK )
             {
-                LogError( ( "Could not clean up private key. PKCS11_PAL_DestroyObject failed with (0x%0lX).", xResult ) );
+                LogError( ( "Could not clean up private key. "
+                            "PKCS11_PAL_DestroyObject failed with (0x%0lX).",
+                            xResult ) );
             }
 
             xResult = prvDeleteObjectFromList( xPalPrivate );
 
             if( xResult != CKR_OK )
             {
-                LogError( ( "Could not remove private key object from internal list. Failed with (0x%0lX).", xResult ) );
+                LogError( ( "Could not remove private key object from internal "
+                            "list. Failed with (0x%0lX).",
+                            xResult ) );
             }
 
             xResult = PKCS11_PAL_DestroyObject( xPalPublic );
 
             if( xResult != CKR_OK )
             {
-                LogError( ( "Could not clean up public key. PKCS11_PAL_DestroyObject failed with (0x%0lX).", xResult ) );
+                LogError( ( "Could not clean up public key. "
+                            "PKCS11_PAL_DestroyObject failed with (0x%0lX).",
+                            xResult ) );
             }
 
             xResult = prvDeleteObjectFromList( xPalPublic );
 
             if( xResult != CKR_OK )
             {
-                LogError( ( "Could not remove private key object from internal list. Failed with (0x%0lX).", xResult ) );
+                LogError( ( "Could not remove private key object from internal "
+                            "list. Failed with (0x%0lX).",
+                            xResult ) );
             }
 
             if( xResult == CKR_OK )
@@ -5763,17 +6392,15 @@ CK_DECLARE_FUNCTION( CK_RV, C_GenerateKeyPair )( CK_SESSION_HANDLE hSession,
  * @brief Generates random data.
  *
  * @param[in] hSession          Handle of a valid PKCS #11 session.
- * @param[out] RandomData       Pointer to location that random data will be placed.
- *                              It is the responsibility of the application to allocate
- *                              this memory.
+ * @param[out] RandomData       Pointer to location that random data will be
+ * placed. It is the responsibility of the application to allocate this memory.
  * @param[in] ulRandomLen       Length of data (in bytes) to be generated.
  *
  * @return CKR_OK if successful.
  */
 /* @[declare_pkcs11_mbedtls_c_generate_random] */
-CK_DECLARE_FUNCTION( CK_RV, C_GenerateRandom )( CK_SESSION_HANDLE hSession,
-                                                CK_BYTE_PTR RandomData,
-                                                CK_ULONG ulRandomLen )
+CK_DECLARE_FUNCTION( CK_RV, C_GenerateRandom )
+( CK_SESSION_HANDLE hSession, CK_BYTE_PTR RandomData, CK_ULONG ulRandomLen )
 {
     CK_RV xResult = CKR_OK;
     int32_t lMbedTLSResult = 0;
@@ -5782,29 +6409,33 @@ CK_DECLARE_FUNCTION( CK_RV, C_GenerateRandom )( CK_SESSION_HANDLE hSession,
 
     xResult = prvCheckValidSessionAndModule( pxSession );
 
-    if( ( NULL == RandomData ) ||
-        ( ulRandomLen == 0UL ) )
+    if( ( NULL == RandomData ) || ( ulRandomLen == 0UL ) )
     {
-        LogError( ( "Failed to generate random bytes. The buffer to store "
-                    "random numbers in was NULL or the length of the buffer was 0." ) );
+        LogError( (
+            "Failed to generate random bytes. The buffer to store "
+            "random numbers in was NULL or the length of the buffer was 0." ) );
         xResult = CKR_ARGUMENTS_BAD;
     }
 
     if( xResult == CKR_OK )
     {
-        lMbedTLSResult = mbedtls_ctr_drbg_random( &xP11Context.xMbedDrbgCtx, RandomData, ulRandomLen );
+        lMbedTLSResult = mbedtls_ctr_drbg_random( &xP11Context.xMbedDrbgCtx,
+                                                  RandomData,
+                                                  ulRandomLen );
 
         if( lMbedTLSResult != 0 )
         {
-            LogError( ( "Failed to generate random bytes. mbed TLS DRBG failed "
-                        "to generate a random number: mbed TLS error = %s : %s.",
-                        mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
-                        mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
+            LogError(
+                ( "Failed to generate random bytes. mbed TLS DRBG failed "
+                  "to generate a random number: mbed TLS error = %s : %s.",
+                  mbedtlsHighLevelCodeOrDefault( lMbedTLSResult ),
+                  mbedtlsLowLevelCodeOrDefault( lMbedTLSResult ) ) );
             xResult = CKR_FUNCTION_FAILED;
         }
         else
         {
-            LogDebug( ( "Successfully generated %lu random bytes.", ( unsigned long int ) ulRandomLen ) );
+            LogDebug( ( "Successfully generated %lu random bytes.",
+                        ( unsigned long int ) ulRandomLen ) );
         }
     }
 

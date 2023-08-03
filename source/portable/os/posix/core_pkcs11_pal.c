@@ -4,22 +4,23 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 /**
@@ -32,15 +33,15 @@
 /*-----------------------------------------------------------*/
 
 /* PKCS 11 includes. */
+#include "core_pkcs11.h"
 #include "core_pkcs11_config.h"
 #include "core_pkcs11_config_defaults.h"
-#include "core_pkcs11.h"
 #include "core_pkcs11_pal_utils.h"
 
 /* C runtime includes. */
-#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /*-----------------------------------------------------------*/
 
@@ -62,12 +63,14 @@ static CK_RV prvFileExists( const char * pcFileName )
     if( pxFile == NULL )
     {
         xReturn = CKR_OBJECT_HANDLE_INVALID;
-        LogDebug( ( "File %s does not exist or could not opened for reading.", pcFileName ) );
+        LogDebug( ( "File %s does not exist or could not opened for reading.",
+                    pcFileName ) );
     }
     else
     {
         ( void ) fclose( pxFile );
-        LogDebug( ( "Found file %s and was able to open it for reading.", pcFileName ) );
+        LogDebug( ( "Found file %s and was able to open it for reading.",
+                    pcFileName ) );
     }
 
     return xReturn;
@@ -94,7 +97,8 @@ static CK_RV prvReadData( const char * pcFileName,
     if( NULL == pxFile )
     {
         LogError( ( "PKCS #11 PAL failed to get object value. "
-                    "Could not open file named %s for reading.", pcFileName ) );
+                    "Could not open file named %s for reading.",
+                    pcFileName ) );
         xReturn = CKR_FUNCTION_FAILED;
     }
     else
@@ -110,13 +114,15 @@ static CK_RV prvReadData( const char * pcFileName,
 
             if( NULL == *ppucData )
             {
-                LogError( ( "Could not get object value. Malloc failed to allocate memory." ) );
+                LogError( ( "Could not get object value. Malloc failed to "
+                            "allocate memory." ) );
                 xReturn = CKR_HOST_MEMORY;
             }
         }
         else
         {
-            LogError( ( "Could not get object value. Failed to determine object size." ) );
+            LogError( ( "Could not get object value. Failed to determine "
+                        "object size." ) );
             xReturn = CKR_FUNCTION_FAILED;
         }
     }
@@ -128,8 +134,12 @@ static CK_RV prvReadData( const char * pcFileName,
 
         if( lSize != *pulDataSize )
         {
-            LogError( ( "PKCS #11 PAL Failed to get object value. Expected to read %ld "
-                        "from %s but received %ld", *pulDataSize, pcFileName, lSize ) );
+            LogError( ( "PKCS #11 PAL Failed to get object value. Expected to "
+                        "read %ld "
+                        "from %s but received %ld",
+                        *pulDataSize,
+                        pcFileName,
+                        lSize ) );
             xReturn = CKR_FUNCTION_FAILED;
         }
     }
@@ -178,22 +188,31 @@ CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
         if( NULL == pxFile )
         {
             LogError( ( "PKCS #11 PAL was unable to save object to file. "
-                        "The PAL was unable to open a file with name %s in write mode.", pcFileName ) );
+                        "The PAL was unable to open a file with name %s in "
+                        "write mode.",
+                        pcFileName ) );
             xHandle = ( CK_OBJECT_HANDLE ) eInvalidHandle;
         }
         else
         {
-            ulBytesWritten = fwrite( pucData, sizeof( uint8_t ), ulDataSize, pxFile );
+            ulBytesWritten = fwrite( pucData,
+                                     sizeof( uint8_t ),
+                                     ulDataSize,
+                                     pxFile );
 
             if( ulBytesWritten != ulDataSize )
             {
                 LogError( ( "PKCS #11 PAL was unable to save object to file. "
-                            "Expected to write %lu bytes, but wrote %lu bytes.", ulDataSize, ulBytesWritten ) );
+                            "Expected to write %lu bytes, but wrote %lu bytes.",
+                            ulDataSize,
+                            ulBytesWritten ) );
                 xHandle = ( CK_OBJECT_HANDLE ) eInvalidHandle;
             }
             else
             {
-                LogDebug( ( "Successfully wrote %lu to %s", ulBytesWritten, pcFileName ) );
+                LogDebug( ( "Successfully wrote %lu to %s",
+                            ulBytesWritten,
+                            pcFileName ) );
             }
         }
 
@@ -204,7 +223,8 @@ CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
     }
     else
     {
-        LogError( ( "Could not save object. Unable to find the correct file." ) );
+        LogError(
+            ( "Could not save object. Unable to find the correct file." ) );
     }
 
     return xHandle;
@@ -212,9 +232,7 @@ CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
 
 /*-----------------------------------------------------------*/
 
-
-CK_OBJECT_HANDLE PKCS11_PAL_FindObject( CK_BYTE_PTR pxLabel,
-                                        CK_ULONG usLength )
+CK_OBJECT_HANDLE PKCS11_PAL_FindObject( CK_BYTE_PTR pxLabel, CK_ULONG usLength )
 {
     const char * pcFileName = NULL;
     CK_OBJECT_HANDLE xHandle = ( CK_OBJECT_HANDLE ) eInvalidHandle;
@@ -249,15 +267,17 @@ CK_RV PKCS11_PAL_GetObjectValue( CK_OBJECT_HANDLE xHandle,
     CK_RV xReturn = CKR_OK;
     const char * pcFileName = NULL;
 
-
-    if( ( ppucData == NULL ) || ( pulDataSize == NULL ) || ( pIsPrivate == NULL ) )
+    if( ( ppucData == NULL ) || ( pulDataSize == NULL ) ||
+        ( pIsPrivate == NULL ) )
     {
         xReturn = CKR_ARGUMENTS_BAD;
         LogError( ( "Could not get object value. Received a NULL argument." ) );
     }
     else
     {
-        xReturn = PAL_UTILS_HandleToFilename( xHandle, &pcFileName, pIsPrivate );
+        xReturn = PAL_UTILS_HandleToFilename( xHandle,
+                                              &pcFileName,
+                                              pIsPrivate );
     }
 
     if( xReturn == CKR_OK )
@@ -291,10 +311,7 @@ CK_RV PKCS11_PAL_DestroyObject( CK_OBJECT_HANDLE xHandle )
     CK_RV xResult = CKR_OBJECT_HANDLE_INVALID;
     int ret = 0;
 
-
-    xResult = PAL_UTILS_HandleToFilename( xHandle,
-                                          &pcFileName,
-                                          &xIsPrivate );
+    xResult = PAL_UTILS_HandleToFilename( xHandle, &pcFileName, &xIsPrivate );
 
     if( ( xResult == CKR_OK ) && ( prvFileExists( pcFileName ) == CKR_OK ) )
     {

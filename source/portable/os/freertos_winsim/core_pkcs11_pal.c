@@ -4,22 +4,23 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 /**
@@ -37,13 +38,11 @@
 #include "core_pkcs11_config.h"
 #include "core_pkcs11_config_defaults.h"
 
-
 /* C runtime includes. */
 #include <stdio.h>
 #include <string.h>
 
 #include "core_pkcs11_pal_utils.h"
-
 
 /*-----------------------------------------------------------*/
 
@@ -88,9 +87,7 @@ CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
     CK_OBJECT_HANDLE xHandle = eInvalidHandle;
 
     /* Converts a label to its respective filename and handle. */
-    PAL_UTILS_LabelToFilenameHandle( pxLabel->pValue,
-                                     &pcFileName,
-                                     &xHandle );
+    PAL_UTILS_LabelToFilenameHandle( pxLabel->pValue, &pcFileName, &xHandle );
 
     /* If your project requires additional PKCS#11 objects, add them here. */
 
@@ -115,7 +112,11 @@ CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
         /* Write the object data. */
         if( ERROR_SUCCESS == ulStatus )
         {
-            if( FALSE == WriteFile( hFile, pucData, ulDataSize, &lpNumberOfBytesWritten, NULL ) )
+            if( FALSE == WriteFile( hFile,
+                                    pucData,
+                                    ulDataSize,
+                                    &lpNumberOfBytesWritten,
+                                    NULL ) )
             {
                 ulStatus = GetLastError();
                 xHandle = eInvalidHandle;
@@ -134,9 +135,7 @@ CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
 
 /*-----------------------------------------------------------*/
 
-
-CK_OBJECT_HANDLE PKCS11_PAL_FindObject( CK_BYTE_PTR pxLabel,
-                                        CK_ULONG usLength )
+CK_OBJECT_HANDLE PKCS11_PAL_FindObject( CK_BYTE_PTR pxLabel, CK_ULONG usLength )
 {
     /* Avoid compiler warnings about unused variables. */
     ( void ) usLength;
@@ -145,9 +144,7 @@ CK_OBJECT_HANDLE PKCS11_PAL_FindObject( CK_BYTE_PTR pxLabel,
     char * pcFileName = NULL;
 
     /* Converts a label to its respective filename and handle. */
-    PAL_UTILS_LabelToFilenameHandle( pxLabel,
-                                     &pcFileName,
-                                     &xHandle );
+    PAL_UTILS_LabelToFilenameHandle( pxLabel, &pcFileName, &xHandle );
 
     /* Check if object exists/has been created before returning. */
     if( pdTRUE != prvFileExists( pcFileName ) )
@@ -170,10 +167,7 @@ CK_RV PKCS11_PAL_GetObjectValue( CK_OBJECT_HANDLE xHandle,
     uint32_t ulSize = 0;
     char * pcFileName = NULL;
 
-
-    ulReturn = PAL_UTILS_HandleToFilename( xHandle,
-                                           &pcFileName,
-                                           pIsPrivate );
+    ulReturn = PAL_UTILS_HandleToFilename( xHandle, &pcFileName, pIsPrivate );
 
     if( ( pcFileName != NULL ) && ( pdTRUE == prvFileExists( pcFileName ) ) )
     {
@@ -265,9 +259,7 @@ CK_RV PKCS11_PAL_DestroyObject( CK_OBJECT_HANDLE xHandle )
     CK_RV xResult = CKR_OBJECT_HANDLE_INVALID;
     BOOL ret = 0;
 
-    xResult = PAL_UTILS_HandleToFilename( xHandle,
-                                          &pcFileName,
-                                          &xIsPrivate );
+    xResult = PAL_UTILS_HandleToFilename( xHandle, &pcFileName, &xIsPrivate );
 
     if( xResult == CKR_OK )
     {

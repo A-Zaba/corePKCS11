@@ -4,40 +4,42 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 /**
  * @file C_DestroyObject_harness.c
  * @brief Implements the proof harness for C_DestroyObject function.
  */
+#include "core_pkcs11.h"
+#include "core_pkcs11_config.h"
+#include "mbedtls/cmac.h"
 #include "mbedtls/ecp.h"
 #include "mbedtls/oid.h"
-#include "mbedtls/sha256.h"
 #include "mbedtls/pk.h"
-#include "mbedtls/cmac.h"
-#include "core_pkcs11_config.h"
-#include "core_pkcs11.h"
+#include "mbedtls/sha256.h"
 
-/* Internal struct for corePKCS11 mbed TLS implementation, but we don't really care what it contains
- * in this proof.
+/* Internal struct for corePKCS11 mbed TLS implementation, but we don't really
+ * care what it contains in this proof.
  *
- * It is just copied over from "core_pkcs11_mbedtls.c" so the structure is correct.
+ * It is just copied over from "core_pkcs11_mbedtls.c" so the structure is
+ * correct.
  */
 typedef struct P11Session
 {
@@ -61,7 +63,8 @@ typedef struct P11Session
     mbedtls_cipher_context_t xCMACSecretContext;
 } P11Session_t;
 
-CK_RV __CPROVER_file_local_core_pkcs11_mbedtls_c_prvCheckValidSessionAndModule( const P11Session_t * pxSession )
+CK_RV __CPROVER_file_local_core_pkcs11_mbedtls_c_prvCheckValidSessionAndModule(
+    const P11Session_t * pxSession )
 {
     CK_RV xResult;
 
@@ -69,10 +72,11 @@ CK_RV __CPROVER_file_local_core_pkcs11_mbedtls_c_prvCheckValidSessionAndModule( 
     return xResult;
 }
 
-void __CPROVER_file_local_core_pkcs11_mbedtls_c_prvFindObjectInListByHandle( CK_OBJECT_HANDLE xAppHandle,
-                                                                             CK_OBJECT_HANDLE_PTR pxPalHandle,
-                                                                             CK_BYTE_PTR * ppcLabel,
-                                                                             CK_ULONG_PTR pxLabelLength )
+void __CPROVER_file_local_core_pkcs11_mbedtls_c_prvFindObjectInListByHandle(
+    CK_OBJECT_HANDLE xAppHandle,
+    CK_OBJECT_HANDLE_PTR pxPalHandle,
+    CK_BYTE_PTR * ppcLabel,
+    CK_ULONG_PTR pxLabelLength )
 {
     CK_OBJECT_HANDLE handle;
     CK_ULONG xLen;
@@ -94,8 +98,8 @@ void harness()
     CK_OBJECT_HANDLE hObject;
     CK_RV xResult;
 
-    /* We need to populate the PKCS module with mutexes. Rather than stubbing out
-     * some critical paths, we can just initialize the module.
+    /* We need to populate the PKCS module with mutexes. Rather than stubbing
+     * out some critical paths, we can just initialize the module.
      */
     xResult = C_Initialize( NULL );
     __CPROVER_assume( xResult == CKR_OK );

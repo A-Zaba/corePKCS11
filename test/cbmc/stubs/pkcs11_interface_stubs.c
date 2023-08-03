@@ -4,22 +4,23 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 /**
@@ -33,17 +34,17 @@
 #include "core_pkcs11.h"
 #include "pkcs11.h"
 
-
-CK_DECLARE_FUNCTION( CK_RV, C_GetSlotList )( CK_BBOOL tokenPresent,
-                                             CK_SLOT_ID_PTR pSlotList,
-                                             CK_ULONG_PTR pulCount )
+CK_DECLARE_FUNCTION( CK_RV, C_GetSlotList )
+( CK_BBOOL tokenPresent, CK_SLOT_ID_PTR pSlotList, CK_ULONG_PTR pulCount )
 {
     int32_t ulCount = nondet_int32();
 
-    /* Most slot lists are less than 10, as it represents an individual HSM. corePKCS11 only
-     * has 1 slot (This is allowed and many implementations do this. */
+    /* Most slot lists are less than 10, as it represents an individual HSM.
+     * corePKCS11 only has 1 slot (This is allowed and many implementations do
+     * this. */
     __CPROVER_assume( ulCount > 0 );
-    __CPROVER_assert( pulCount != NULL, "The count pointer can never be NULL." );
+    __CPROVER_assert( pulCount != NULL,
+                      "The count pointer can never be NULL." );
 
     CK_SLOT_ID * pxSlot = malloc( ulCount );
 
@@ -61,12 +62,12 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetSlotList )( CK_BBOOL tokenPresent,
 
 static CK_FUNCTION_LIST prvP11FunctionList = { NULL };
 
-CK_DECLARE_FUNCTION( CK_RV, C_GetFunctionList )( CK_FUNCTION_LIST_PTR_PTR ppFunctionList )
+CK_DECLARE_FUNCTION( CK_RV, C_GetFunctionList )
+( CK_FUNCTION_LIST_PTR_PTR ppFunctionList )
 {
     CK_RV xResult;
 
-    CK_FUNCTION_LIST xP11FunctionList =
-    {
+    CK_FUNCTION_LIST xP11FunctionList = {
         { CRYPTOKI_VERSION_MAJOR, CRYPTOKI_VERSION_MINOR },
         nondet_bool() ? C_Initialize : NULL,
         nondet_bool() ? C_Finalize : NULL,
@@ -139,7 +140,9 @@ CK_DECLARE_FUNCTION( CK_RV, C_GetFunctionList )( CK_FUNCTION_LIST_PTR_PTR ppFunc
         NULL  /*C_WaitForSlotEvent*/
     };
 
-    ( void ) memcpy( &prvP11FunctionList, &xP11FunctionList, sizeof( CK_FUNCTION_LIST ) );
+    ( void ) memcpy( &prvP11FunctionList,
+                     &xP11FunctionList,
+                     sizeof( CK_FUNCTION_LIST ) );
 
     if( xResult == CKR_OK )
     {

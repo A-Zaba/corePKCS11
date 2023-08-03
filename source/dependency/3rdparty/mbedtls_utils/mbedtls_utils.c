@@ -4,22 +4,23 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 /**
@@ -31,11 +32,11 @@
 #include <string.h>
 
 /* mbedTLS includes. */
-#include "mbedtls/base64.h"
-#include "mbedtls/rsa.h"
 #include "mbedtls/asn1.h"
-#include "mbedtls/platform_util.h"
+#include "mbedtls/base64.h"
 #include "mbedtls/oid.h"
+#include "mbedtls/platform_util.h"
+#include "mbedtls/rsa.h"
 /*-----------------------------------------------------------*/
 
 /* @brief Converts PEM documents into DER formatted byte arrays.
@@ -45,11 +46,12 @@
  * \param pucInput[in]       Pointer to PEM object
  * \param xLen[in]           Length of PEM object
  * \param pucOutput[out]     Pointer to buffer where DER oboject will be placed
- * \param pxOlen[in/out]     Pointer to length of DER buffer.  This value is updated
- *                          to contain the actual length of the converted DER object.
+ * \param pxOlen[in/out]     Pointer to length of DER buffer.  This value is
+ * updated to contain the actual length of the converted DER object.
  *
  * \return 0 if successful.  Negative if conversion failed.  If buffer is not
- * large enough to hold converted object, pxOlen is still updated but -1 is returned.
+ * large enough to hold converted object, pxOlen is still updated but -1 is
+ * returned.
  *
  */
 int convert_pem_to_der( const unsigned char * pucInput,
@@ -63,18 +65,19 @@ int convert_pem_to_der( const unsigned char * pucInput,
     const unsigned char * pucEnd = pucInput + xLen;
     size_t xOtherLen = 0;
 
-    pucS1 = ( unsigned char * ) strstr( ( const char * ) pucInput, "-----BEGIN" );
+    pucS1 = ( unsigned char * ) strstr( ( const char * ) pucInput,
+                                        "-----BEGIN" );
 
     if( pucS1 == NULL )
     {
-        return( -1 );
+        return ( -1 );
     }
 
     pucS2 = ( unsigned char * ) strstr( ( const char * ) pucInput, "-----END" );
 
     if( pucS2 == NULL )
     {
-        return( -1 );
+        return ( -1 );
     }
 
     pucS1 += 10;
@@ -101,37 +104,43 @@ int convert_pem_to_der( const unsigned char * pucInput,
 
     if( ( pucS2 <= pucS1 ) || ( pucS2 > pucEnd ) )
     {
-        return( -1 );
+        return ( -1 );
     }
 
-    lRet = mbedtls_base64_decode( NULL, 0, &xOtherLen, ( const unsigned char * ) pucS1, pucS2 - pucS1 );
+    lRet = mbedtls_base64_decode( NULL,
+                                  0,
+                                  &xOtherLen,
+                                  ( const unsigned char * ) pucS1,
+                                  pucS2 - pucS1 );
 
     if( lRet == MBEDTLS_ERR_BASE64_INVALID_CHARACTER )
     {
-        return( lRet );
+        return ( lRet );
     }
 
     if( xOtherLen > *pxOlen )
     {
-        return( -1 );
+        return ( -1 );
     }
 
-    if( ( lRet = mbedtls_base64_decode( pucOutput, xOtherLen, &xOtherLen, ( const unsigned char * ) pucS1,
+    if( ( lRet = mbedtls_base64_decode( pucOutput,
+                                        xOtherLen,
+                                        &xOtherLen,
+                                        ( const unsigned char * ) pucS1,
                                         pucS2 - pucS1 ) ) != 0 )
     {
-        return( lRet );
+        return ( lRet );
     }
 
     *pxOlen = xOtherLen;
 
-    return( 0 );
+    return ( 0 );
 }
 /*-----------------------------------------------------------*/
 
-
 /* This function is a modified version of the static function
- * rsa_rsassa_pkcs1_v15_encode() inside of rsa.c in mbedTLS.  It has been extracted
- * so that corePKCS11 libraries and testing may use it. */
+ * rsa_rsassa_pkcs1_v15_encode() inside of rsa.c in mbedTLS.  It has been
+ * extracted so that corePKCS11 libraries and testing may use it. */
 
 /* Construct a PKCS v1.5 encoding of a hashed message
  *
@@ -172,23 +181,22 @@ int PKI_RSA_RSASSA_PKCS1_v15_Encode( const unsigned char * hash,
 
     if( md_info == NULL )
     {
-        return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
+        return ( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
     }
 
     if( mbedtls_oid_get_oid_by_md( md_alg, &oid, &oid_size ) != 0 )
     {
-        return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
+        return ( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
     }
 
     hashlen = mbedtls_md_get_size( md_info );
 
     /* Double-check that 8 + hashlen + oid_size can be used as a
      * 1-byte ASN.1 length encoding and that there's no overflow. */
-    if( ( 8 + hashlen + oid_size >= 0x80 ) ||
-        ( 10 + hashlen < hashlen ) ||
+    if( ( 8 + hashlen + oid_size >= 0x80 ) || ( 10 + hashlen < hashlen ) ||
         ( 10 + hashlen + oid_size < 10 + hashlen ) )
     {
-        return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
+        return ( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
     }
 
     /*
@@ -201,7 +209,7 @@ int PKI_RSA_RSASSA_PKCS1_v15_Encode( const unsigned char * hash,
      */
     if( nb_pad < 10 + hashlen + oid_size )
     {
-        return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
+        return ( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
     }
 
     nb_pad -= 10 + hashlen + oid_size;
@@ -210,7 +218,7 @@ int PKI_RSA_RSASSA_PKCS1_v15_Encode( const unsigned char * hash,
      * and 8 bytes for the minimal padding */
     if( nb_pad < 3 + 8 )
     {
-        return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
+        return ( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
     }
 
     nb_pad -= 3;
@@ -229,7 +237,7 @@ int PKI_RSA_RSASSA_PKCS1_v15_Encode( const unsigned char * hash,
     if( md_alg == MBEDTLS_MD_NONE )
     {
         memcpy( p, hash, hashlen );
-        return( 0 );
+        return ( 0 );
     }
 
     /* Signing hashed data, add corresponding ASN.1 structure
@@ -265,8 +273,8 @@ int PKI_RSA_RSASSA_PKCS1_v15_Encode( const unsigned char * hash,
     if( p != dst + dst_len )
     {
         mbedtls_platform_zeroize( dst, dst_len );
-        return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
+        return ( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
     }
 
-    return( 0 );
+    return ( 0 );
 }

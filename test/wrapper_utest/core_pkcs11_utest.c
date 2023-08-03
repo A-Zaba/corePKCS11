@@ -4,43 +4,43 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 /* C runtime includes. */
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* PKCS #11 includes. */
-#include "core_pkcs11_config.h"
 #include "core_pkcs11.h"
+#include "core_pkcs11_config.h"
 
 /* Test includes. */
 #include "unity.h"
 
 /* Mock includes. */
-#include "mock_pkcs11.h"
 #include "mock_malloc_stub.h"
+#include "mock_pkcs11.h"
 
 /* ============================  GLOBAL VARIABLES =========================== */
-static CK_FUNCTION_LIST prvP11FunctionList =
-{
+static CK_FUNCTION_LIST prvP11FunctionList = {
     { CRYPTOKI_VERSION_MAJOR, CRYPTOKI_VERSION_MINOR },
     C_Initialize,
     C_Finalize,
@@ -63,11 +63,11 @@ static CK_FUNCTION_LIST prvP11FunctionList =
     C_Login, /*C_Login*/
     NULL,    /*C_Logout*/
     C_CreateObject,
-    NULL,    /*C_CopyObject*/
+    NULL, /*C_CopyObject*/
     C_DestroyObject,
-    NULL,    /*C_GetObjectSize*/
+    NULL, /*C_GetObjectSize*/
     C_GetAttributeValue,
-    NULL,    /*C_SetAttributeValue*/
+    NULL, /*C_SetAttributeValue*/
     C_FindObjectsInit,
     C_FindObjects,
     C_FindObjectsFinal,
@@ -119,8 +119,7 @@ static uint16_t usMallocFreeCalls = 0;
 /*!
  * @brief Wrapper stub for malloc.
  */
-void * pvPkcs11MallocCb( size_t size,
-                         int numCalls )
+void * pvPkcs11MallocCb( size_t size, int numCalls )
 {
     ( void ) numCalls;
 
@@ -134,8 +133,7 @@ void * pvPkcs11MallocCb( size_t size,
  * This is specifically to get complete branch coverage, as some branches
  * are only taken if a previous call to malloc was successful.
  */
-void * pvPkcs11MallocCbFailEveryOtherCall( size_t size,
-                                           int numCalls )
+void * pvPkcs11MallocCbFailEveryOtherCall( size_t size, int numCalls )
 {
     static uint32_t ulCalls = 1;
     void * pvReturn = NULL;
@@ -157,8 +155,7 @@ void * pvPkcs11MallocCbFailEveryOtherCall( size_t size,
  * @brief Wrapper stub for free.
  *
  */
-void vPkcs11FreeCb( void * ptr,
-                    int numCalls )
+void vPkcs11FreeCb( void * ptr, int numCalls )
 {
     ( void ) numCalls;
 
@@ -209,8 +206,7 @@ static CK_RV prvSetFunctionList2( CK_FUNCTION_LIST_PTR_PTR ppxPtr )
  * @brief Stub for receiving an uninitialized token.
  *
  */
-static CK_RV prvUninitializedToken( CK_SLOT_ID slotID,
-                                    CK_TOKEN_INFO_PTR pInfo )
+static CK_RV prvUninitializedToken( CK_SLOT_ID slotID, CK_TOKEN_INFO_PTR pInfo )
 {
     ( void ) slotID;
 
@@ -249,9 +245,7 @@ static CK_RV xSecondGetFails( CK_BBOOL arg1,
  *
  * Specifically to set the slot count count to be more than 0.
  */
-static CK_RV xGet1Item( CK_BBOOL arg1,
-                        CK_SLOT_ID_PTR arg2,
-                        CK_ULONG_PTR arg3 )
+static CK_RV xGet1Item( CK_BBOOL arg1, CK_SLOT_ID_PTR arg2, CK_ULONG_PTR arg3 )
 {
     ( void ) arg1;
     ( void ) arg2;
@@ -278,7 +272,6 @@ static CK_RV xGet1Item2( CK_BBOOL arg1,
     return CKR_OK;
 }
 
-
 /*!
  * @brief Common stubs to most core_pkcs11.c #11 test paths.
  *
@@ -301,8 +294,10 @@ void setUp( void )
 /* called before each testcase */
 void tearDown( void )
 {
-    TEST_ASSERT_EQUAL_INT_MESSAGE( 0, usMallocFreeCalls,
-                                   "free is not called the same number of times as malloc, \
+    TEST_ASSERT_EQUAL_INT_MESSAGE(
+        0,
+        usMallocFreeCalls,
+        "free is not called the same number of times as malloc, \
         you might have a memory leak!!" );
     usMallocFreeCalls = 0;
 }
@@ -405,7 +400,6 @@ void test_IotPkcs11_xGetSlotListBadSlotList( void )
     TEST_ASSERT_EQUAL( CKR_FUNCTION_FAILED, xResult );
 }
 
-
 /*!
  * @brief xGetSlotList NULL args.
  *
@@ -444,8 +438,8 @@ void test_IotPkcs11_xGetSlotListNoC_GetSlotList( void )
 /*!
  * @brief xGetSlotList free memory branch path.
  *
- * This behavior is acquired by failing the second malloc, and forcing xGetSlotList
- * to clean up after itself.
+ * This behavior is acquired by failing the second malloc, and forcing
+ * xGetSlotList to clean up after itself.
  */
 void test_IotPkcs11_xGetSlotListFreeMemory( void )
 {
@@ -522,7 +516,8 @@ void test_IotPkcs11_xInitializePkcs11TokenAlreadyInit( void )
 }
 
 /*!
- * @brief xInitializePkcs11Token C_GetTokenInfo failure due to memory constraint.
+ * @brief xInitializePkcs11Token C_GetTokenInfo failure due to memory
+ * constraint.
  *
  */
 void test_IotPkcs11_xInitializePkcs11TokenBadC_GetTokenInfo( void )
@@ -541,7 +536,8 @@ void test_IotPkcs11_xInitializePkcs11TokenBadC_GetTokenInfo( void )
 }
 
 /*!
- * @brief xInitializePkcs11Token C_GetTokenInfo failure due to uninitialized token.
+ * @brief xInitializePkcs11Token C_GetTokenInfo failure due to uninitialized
+ * token.
  *
  */
 void test_IotPkcs11_xInitializePkcs11TokenUninitializedToken( void )
@@ -635,8 +631,8 @@ void test_IotPkcs11_xInitializePkcs11TokenNullInitToken( void )
 }
 
 /*!
- * @brief xInitializePkcs11Token Happy path in which C_GetSlotList returns greater
- * than 0 tokens.
+ * @brief xInitializePkcs11Token Happy path in which C_GetSlotList returns
+ * greater than 0 tokens.
  *
  */
 void test_IotPkcs11_xInitializePkcs11TokenHasTokenInfo( void )
@@ -667,18 +663,21 @@ void test_IotPkcs11_vAppendSHA256AlgorithmIdentifierSequence( void )
 
     memset( &( pucHashData[ 0 ] ), 0xAB, 32 );
 
-    xResult = vAppendSHA256AlgorithmIdentifierSequence( pucHashData, pucOidBuf );
+    xResult = vAppendSHA256AlgorithmIdentifierSequence( pucHashData,
+                                                        pucOidBuf );
 
     TEST_ASSERT_EQUAL( CKR_OK, xResult );
     TEST_ASSERT_EQUAL_UINT8_ARRAY( &( pucDigestAlgorithmIdentifier[ 0 ] ),
                                    &( pucOidBuf[ 0 ] ),
                                    sizeof( pucDigestAlgorithmIdentifier ) );
-    TEST_ASSERT_EQUAL_UINT8_ARRAY( &( pucHashData[ 0 ] ),
-                                   &( pucOidBuf[ sizeof( pucDigestAlgorithmIdentifier ) ] ),
-                                   32 );
-    TEST_ASSERT_EACH_EQUAL_UINT8( 0,
-                                  &( pucOidBuf[ sizeof( pucDigestAlgorithmIdentifier ) + 32 ] ),
-                                  128 - ( sizeof( pucDigestAlgorithmIdentifier ) + 32 ) );
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(
+        &( pucHashData[ 0 ] ),
+        &( pucOidBuf[ sizeof( pucDigestAlgorithmIdentifier ) ] ),
+        32 );
+    TEST_ASSERT_EACH_EQUAL_UINT8(
+        0,
+        &( pucOidBuf[ sizeof( pucDigestAlgorithmIdentifier ) + 32 ] ),
+        128 - ( sizeof( pucDigestAlgorithmIdentifier ) + 32 ) );
 }
 
 /*!
@@ -830,16 +829,19 @@ void test_IotPkcs11_xFindObjectWithLabelAndClass( void )
     C_FindObjectsInit_IgnoreAndReturn( CKR_OK );
     C_FindObjects_Stub( ( void * ) xGet1Item2 );
     C_FindObjectsFinal_IgnoreAndReturn( CKR_OK );
-    xResult = xFindObjectWithLabelAndClass( xHandle,
-                                            pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS,
-                                            strlen( pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS ),
-                                            CKO_PRIVATE_KEY, &xPrivateKeyHandle );
+    xResult = xFindObjectWithLabelAndClass(
+        xHandle,
+        pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS,
+        strlen( pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS ),
+        CKO_PRIVATE_KEY,
+        &xPrivateKeyHandle );
 
     TEST_ASSERT_EQUAL( CKR_OK, xResult );
 }
 
 /*!
- * @brief xFindObjectWithLabelAndClass All calls succeed but no object was found.
+ * @brief xFindObjectWithLabelAndClass All calls succeed but no object was
+ * found.
  *
  */
 void test_IotPkcs11_xFindObjectWithLabelAndClassNoObjectsFound( void )
@@ -852,11 +854,12 @@ void test_IotPkcs11_xFindObjectWithLabelAndClassNoObjectsFound( void )
     C_FindObjectsInit_IgnoreAndReturn( CKR_OK );
     C_FindObjects_IgnoreAndReturn( CKR_OK );
     C_FindObjectsFinal_IgnoreAndReturn( CKR_OK );
-    xResult = xFindObjectWithLabelAndClass( xHandle,
-                                            pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS,
-                                            strlen( pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS ),
-                                            CKO_PRIVATE_KEY,
-                                            &xPrivateKeyHandle );
+    xResult = xFindObjectWithLabelAndClass(
+        xHandle,
+        pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS,
+        strlen( pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS ),
+        CKO_PRIVATE_KEY,
+        &xPrivateKeyHandle );
 
     TEST_ASSERT_EQUAL( CKR_OK, xResult );
     TEST_ASSERT_EQUAL( CK_INVALID_HANDLE, xPrivateKeyHandle );
@@ -873,12 +876,21 @@ void test_IotPkcs11_xFindObjectWithLabelAndClassNullArgs( void )
     CK_OBJECT_HANDLE xPrivateKeyHandle = { 0 };
 
     /* NULL label name. */
-    xResult = xFindObjectWithLabelAndClass( xHandle, NULL, 0, CKO_PRIVATE_KEY, &xPrivateKeyHandle );
+    xResult = xFindObjectWithLabelAndClass( xHandle,
+                                            NULL,
+                                            0,
+                                            CKO_PRIVATE_KEY,
+                                            &xPrivateKeyHandle );
 
     TEST_ASSERT_EQUAL( CKR_ARGUMENTS_BAD, xResult );
 
     /* NULL object handle. */
-    xResult = xFindObjectWithLabelAndClass( xHandle, pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS, strlen( pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS ), CKO_PRIVATE_KEY, NULL );
+    xResult = xFindObjectWithLabelAndClass(
+        xHandle,
+        pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS,
+        strlen( pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS ),
+        CKO_PRIVATE_KEY,
+        NULL );
 
     TEST_ASSERT_EQUAL( CKR_ARGUMENTS_BAD, xResult );
 }
@@ -894,7 +906,12 @@ void test_IotPkcs11_xFindObjectWithLabelAndClassBadFunctionList( void )
     CK_OBJECT_HANDLE xPrivateKeyHandle = { 0 };
 
     C_GetFunctionList_IgnoreAndReturn( CKR_ARGUMENTS_BAD );
-    xResult = xFindObjectWithLabelAndClass( xHandle, pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS, strlen( pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS ), CKO_PRIVATE_KEY, &xPrivateKeyHandle );
+    xResult = xFindObjectWithLabelAndClass(
+        xHandle,
+        pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS,
+        strlen( pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS ),
+        CKO_PRIVATE_KEY,
+        &xPrivateKeyHandle );
 
     TEST_ASSERT_EQUAL( CKR_FUNCTION_FAILED, xResult );
 }

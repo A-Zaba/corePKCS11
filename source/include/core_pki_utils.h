@@ -4,33 +4,34 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef _CORE_PKI_UTILS_H_
 #define _CORE_PKI_UTILS_H_
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
-    extern "C" {
+extern "C" {
 #endif
 /* *INDENT-ON* */
 
@@ -53,7 +54,8 @@
  *                                        will be placed.  Caller must
  *                                        allocate 64 bytes of memory.
  * @param[in] pxMbedSignature             Pointer to DER encoded ECDSA
- *                                        signature. Buffer size is expected to be 72 bytes.
+ *                                        signature. Buffer size is expected to
+ * be 72 bytes.
  *
  * \return 0 on success, -1 on failure.
  */
@@ -62,11 +64,9 @@ int8_t PKI_mbedTLSSignatureToPkcs11Signature( uint8_t * pxSignaturePKCS,
                                               const uint8_t * pxMbedSignature );
 /* @[declare_pkcs11_utils_pkimbedtlssignaturetopkcs11signature] */
 
-
-
 /**
- * @brief Converts and ECDSA P-256 signature from the format provided by PKCS #11
- * to an ASN.1 formatted signature.
+ * @brief Converts and ECDSA P-256 signature from the format provided by PKCS
+ *#11 to an ASN.1 formatted signature.
  *
  * For P-256 signature, ASN.1 formatting has the format
  *
@@ -81,7 +81,8 @@ int8_t PKI_mbedTLSSignatureToPkcs11Signature( uint8_t * pxSignaturePKCS,
  *                           72 bytes).  It is the responsibility of the caller
  *                           to guarantee that this pointer is large enough to
  *                           hold the (longer) formatted signature.
- *@param[out] pxSigLen       Pointer to the length of the ASN.1 formatted signature.
+ *@param[out] pxSigLen       Pointer to the length of the ASN.1 formatted
+ *signature.
  *
  * \return 0 if successful, -1 on failure.
  *
@@ -93,7 +94,7 @@ int8_t PKI_pkcs11SignatureTombedTLSSignature( uint8_t * pucSig,
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
-    }
+}
 #endif
 /* *INDENT-ON* */
 

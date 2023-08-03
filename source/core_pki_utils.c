@@ -4,22 +4,23 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 /**
@@ -36,7 +37,7 @@
  * @ingroup pkcs11_macros
  * @brief Failure value for PKI utils functions.
  */
-#define FAILURE    ( -1 )
+#define FAILURE ( -1 )
 
 /*-----------------------------------------------------------*/
 
@@ -65,29 +66,45 @@ int8_t PKI_mbedTLSSignatureToPkcs11Signature( uint8_t * pxSignaturePKCS,
         /* The 4th byte contains the length of the R component */
         ucSigComponentLength = pxMbedSignature[ 3 ];
 
-        /* The new signature will be 64 bytes long (32 bytes for R, 32 bytes for S).
-         * Zero this buffer out in case a component is shorter than 32 bytes. */
+        /* The new signature will be 64 bytes long (32 bytes for R, 32 bytes for
+         * S). Zero this buffer out in case a component is shorter than 32
+         * bytes. */
         ( void ) memset( pxSignaturePKCS, 0, 64 );
 
         /********* R Component. *********/
 
-        /* R components are represented by mbedTLS as 33 bytes when the first bit is zero to avoid any sign confusion. */
+        /* R components are represented by mbedTLS as 33 bytes when the first
+         * bit is zero to avoid any sign confusion. */
         if( ucSigComponentLength == 33UL )
         {
-            /* Chop off the leading zero.  The first 4 bytes were SEQUENCE, LENGTH, INTEGER, LENGTH, 0x00 padding.  */
+            /* Chop off the leading zero.  The first 4 bytes were SEQUENCE,
+             * LENGTH, INTEGER, LENGTH, 0x00 padding.  */
             ( void ) memcpy( pxSignaturePKCS, &pxMbedSignature[ 5 ], 32 );
-            /* SEQUENCE, LENGTH, INTEGER, LENGTH, leading zero, R, S's integer tag */
+            /* SEQUENCE, LENGTH, INTEGER, LENGTH, leading zero, R, S's integer
+             * tag */
             pxNextLength = &pxMbedSignature[ 5U + 32U + 1U ];
         }
         else if( ucSigComponentLength <= 32UL )
         {
-            /* The R component is 32 bytes or less.  Copy so that it is properly represented as a 32 byte value,
-             * leaving leading 0 pads at beginning if necessary. */
-            ( void ) memcpy( &pxSignaturePKCS[ 32UL - ucSigComponentLength ],  /* If the R component is less than 32 bytes, leave the leading zeros. */
-                             &pxMbedSignature[ 4 ],                            /* SEQUENCE, LENGTH, INTEGER, LENGTH, (R component begins as the 5th byte) */
-                             ucSigComponentLength );
-            pxNextLength = &pxMbedSignature[ 4U + ucSigComponentLength + 1U ]; /* Move the pointer to get rid of
-                                                                                * SEQUENCE, LENGTH, INTEGER, LENGTH, R Component, S integer tag. */
+            /* The R component is 32 bytes or less.  Copy so that it is properly
+             * represented as a 32 byte value, leaving leading 0 pads at
+             * beginning if necessary. */
+            ( void ) memcpy(
+                &pxSignaturePKCS[ 32UL - ucSigComponentLength ], /* If the R
+                                                                    component is
+                                                                    less than 32
+                                                                    bytes, leave
+                                                                    the leading
+                                                                    zeros. */
+                &pxMbedSignature[ 4 ], /* SEQUENCE, LENGTH, INTEGER, LENGTH, (R
+                                          component begins as the 5th byte) */
+                ucSigComponentLength );
+            pxNextLength = &pxMbedSignature[ 4U + ucSigComponentLength +
+                                             1U ]; /* Move the pointer to get
+                                                    * rid of SEQUENCE, LENGTH,
+                                                    * INTEGER, LENGTH, R
+                                                    * Component, S integer tag.
+                                                    */
         }
         else
         {
@@ -104,13 +121,18 @@ int8_t PKI_mbedTLSSignatureToPkcs11Signature( uint8_t * pxSignaturePKCS,
             if( ucSigComponentLength == 33UL )
             {
                 ( void ) memcpy( &pxSignaturePKCS[ 32 ],
-                                 &pxNextLength[ 2 ], /*LENGTH (of S component), 0x00 padding, S component is 3rd byte - we want to skip the leading zero. */
+                                 &pxNextLength[ 2 ], /*LENGTH (of S component),
+                                                        0x00 padding, S
+                                                        component is 3rd byte -
+                                                        we want to skip the
+                                                        leading zero. */
                                  32 );
             }
             else if( ucSigComponentLength <= 32UL )
             {
-                /* The S component is 32 bytes or less.  Copy so that it is properly represented as a 32 byte value,
-                 * leaving leading 0 pads at beginning if necessary. */
+                /* The S component is 32 bytes or less.  Copy so that it is
+                 * properly represented as a 32 byte value, leaving leading 0
+                 * pads at beginning if necessary. */
                 ( void ) memcpy( &pxSignaturePKCS[ 64UL - ucSigComponentLength ],
                                  &pxNextLength[ 1 ],
                                  ucSigComponentLength );
@@ -127,7 +149,6 @@ int8_t PKI_mbedTLSSignatureToPkcs11Signature( uint8_t * pxSignaturePKCS,
 /* @[declare pkcs11_utils_pkipkcs11signaturetombedtlssignature] */
 /*-----------------------------------------------------------*/
 
-
 /* Convert an EC signature from PKCS #11 format to DER encoded. */
 /* @[declare pkcs11_utils_pkimbedtlssignaturetopkcs11signature] */
 int8_t PKI_pkcs11SignatureTombedTLSSignature( uint8_t * pucSig,
@@ -135,7 +156,8 @@ int8_t PKI_pkcs11SignatureTombedTLSSignature( uint8_t * pucSig,
 {
     int8_t xReturn = 0;
     uint8_t * pucSigPtr = NULL;
-    uint8_t ucTemp[ 64 ] = { 0 }; /* A temporary buffer for the pre-formatted signature. */
+    uint8_t ucTemp[ 64 ] = { 0 }; /* A temporary buffer for the pre-formatted
+                                     signature. */
 
     if( ( pucSig == NULL ) || ( pxSigLen == NULL ) )
     {
@@ -145,7 +167,6 @@ int8_t PKI_pkcs11SignatureTombedTLSSignature( uint8_t * pucSig,
     if( xReturn == 0 )
     {
         ( void ) memcpy( ucTemp, pucSig, 64 );
-
 
         /* The ASN.1 encoded signature has the format
          * SEQUENCE LENGTH (of entire rest of signature)
@@ -166,20 +187,28 @@ int8_t PKI_pkcs11SignatureTombedTLSSignature( uint8_t * pucSig,
          * This prevents the number from being interpreted as negative. */
         if( ( ucTemp[ 0 ] & 0x80UL ) == 0x80UL )
         {
-            pucSig[ 1 ]++;                               /* Increment the length of the structure to account for the 0x00 pad. */
-            pucSig[ 3 ] = 0x21;                          /* Increment the length of the R value to account for the 0x00 pad. */
-            pucSig[ 4 ] = 0x0;                           /* Write the 0x00 pad. */
-            ( void ) memcpy( &pucSig[ 5 ], ucTemp, 32 ); /* Copy the 32-byte R value. */
-            pucSigPtr = pucSig + 33;                     /* Increment the pointer to compensate for padded R length.    */
+            pucSig[ 1 ]++; /* Increment the length of the structure to account
+                              for the 0x00 pad. */
+            pucSig[ 3 ] = 0x21; /* Increment the length of the R value to
+                                   account for the 0x00 pad. */
+            pucSig[ 4 ] = 0x0;  /* Write the 0x00 pad. */
+            ( void ) memcpy( &pucSig[ 5 ], ucTemp, 32 ); /* Copy the 32-byte R
+                                                            value. */
+            pucSigPtr = pucSig + 33; /* Increment the pointer to compensate for
+                                        padded R length.    */
         }
         else
         {
-            pucSig[ 3 ] = 0x20;                          /* R length with be 32 bytes. */
-            ( void ) memcpy( &pucSig[ 4 ], ucTemp, 32 ); /* Copy 32 bytes of R into the signature buffer. */
-            pucSigPtr = pucSig + 32;                     /* Increment the pointer for 32 byte R length. */
+            pucSig[ 3 ] = 0x20; /* R length with be 32 bytes. */
+            ( void ) memcpy( &pucSig[ 4 ], ucTemp, 32 ); /* Copy 32 bytes of R
+                                                            into the signature
+                                                            buffer. */
+            pucSigPtr = pucSig +
+                        32; /* Increment the pointer for 32 byte R length. */
         }
 
-        pucSigPtr += 4;        /* Increment the pointer to offset the SEQUENCE, LENGTH, R-INTEGER, LENGTH. */
+        pucSigPtr += 4; /* Increment the pointer to offset the SEQUENCE, LENGTH,
+                           R-INTEGER, LENGTH. */
         pucSigPtr[ 0 ] = 0x02; /* INTEGER tag for S. */
         pucSigPtr += 1;        /* Increment over S INTEGER tag. */
 
@@ -189,22 +218,27 @@ int8_t PKI_pkcs11SignatureTombedTLSSignature( uint8_t * pucSig,
          * This prevents the number from being interpreted as negative. */
         if( ( ucTemp[ 32 ] & 0x80UL ) == 0x80UL )
         {
-            pucSig[ 1 ]++;                                   /* Increment the length of the structure to account for the 0x00 pad. */
-            pucSigPtr[ 0 ] = 0x21;                           /* Increment the length of the S value to account for the 0x00 pad. */
-            pucSigPtr[ 1 ] = 0x00;                           /* Write the 0x00 pad. */
-            pucSigPtr += 2;                                  /* pucSigPtr was pointing at the S-length.  Increment by 2 to hop over length and 0 padding. */
+            pucSig[ 1 ]++; /* Increment the length of the structure to account
+                              for the 0x00 pad. */
+            pucSigPtr[ 0 ] = 0x21; /* Increment the length of the S value to
+                                      account for the 0x00 pad. */
+            pucSigPtr[ 1 ] = 0x00; /* Write the 0x00 pad. */
+            pucSigPtr += 2; /* pucSigPtr was pointing at the S-length. Increment
+                               by 2 to hop over length and 0 padding. */
 
-            ( void ) memcpy( pucSigPtr, &ucTemp[ 32 ], 32 ); /* Copy the S value. */
+            ( void ) memcpy( pucSigPtr, &ucTemp[ 32 ], 32 ); /* Copy the S
+                                                                value. */
         }
         else
         {
-            pucSigPtr[ 0 ] = 0x20;                           /* S length will be 32 bytes. */
-            pucSigPtr++;                                     /* Hop pointer over the length byte. */
-            ( void ) memcpy( pucSigPtr, &ucTemp[ 32 ], 32 ); /* Copy the S value. */
+            pucSigPtr[ 0 ] = 0x20; /* S length will be 32 bytes. */
+            pucSigPtr++;           /* Hop pointer over the length byte. */
+            ( void ) memcpy( pucSigPtr, &ucTemp[ 32 ], 32 ); /* Copy the S
+                                                                value. */
         }
 
-        /* The total signature length is the length of the R and S integers plus 2 bytes for
-         * the SEQUENCE and LENGTH wrapping the entire struct. */
+        /* The total signature length is the length of the R and S integers plus
+         * 2 bytes for the SEQUENCE and LENGTH wrapping the entire struct. */
         *pxSigLen = pucSig[ 1 ] + 2UL;
     }
 
