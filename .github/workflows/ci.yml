@@ -32,9 +32,9 @@ jobs:
         if: success() || failure()
         uses: actions/upload-artifact@v3
         with:
-            name: system_test_results
-            path: |
-              build/Testing/Temporary/LastTest.log
+          name: system_test_results
+          path: |
+            build/Testing/Temporary/LastTest.log
 
   unit-tests-with-sanitizer:
     runs-on: ubuntu-latest
@@ -90,13 +90,13 @@ jobs:
         if: success() || failure()
         uses: actions/upload-artifact@v3
         with:
-            name: unit_test_results
-            path: |
-              build/utest_report.txt
-              build/*_out.txt
-              build/coverage.info
-              build/report.xml
-              build/Testing/Temporary/LastTest.log
+          name: unit_test_results
+          path: |
+            build/utest_report.txt
+            build/*_out.txt
+            build/coverage.info
+            build/report.xml
+            build/Testing/Temporary/LastTest.log
       - name: Upload coverage data to Codecov
         if: success()
         uses: codecov/codecov-action@v3
@@ -105,7 +105,6 @@ jobs:
           flags: unit_tests
           fail_ci_if_error: false
           verbose: false
-
 
   complexity:
     runs-on: ubuntu-latest
@@ -175,7 +174,7 @@ jobs:
       - name: Setup Python for link verifier action
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11.0'
+          python-version: "3.11.0"
       - name: Check Links
         uses: FreeRTOS/CI-CD-GitHub-Actions/link-verifier@main
         with:
@@ -215,12 +214,12 @@ jobs:
       - name: Install Python3
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11.0'
+          python-version: "3.11.0"
       - name: Measure sizes
         uses: Skptak/CI-CD-Github-Actions/memory_statistics@main
         with:
-            config: .github/memory_statistics_config.json
-            check_against: docs/doxygen/include/size_table.md
+          config: .github/memory_statistics_config.json
+          check_against: docs/doxygen/include/size_table.md
 
   proof_ci:
     if: ${{ github.event.pull_request }}

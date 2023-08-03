@@ -1,7 +1,5 @@
-{ "expected-missing-functions":
-  [
-
-  ],
+{
+  "expected-missing-functions": [],
   "proof-name": "xInitializePkcs11Token",
   "proof-root": "test/cbmc/proofs"
 }

@@ -1,9 +1,9 @@
-name : "corePKCS11"
+name: "corePKCS11"
 version: "v3.5.0"
 description: "Software implementation of the PKCS #11 standard."
 license: "MIT"
 dependencies:
-  - name : "mbedtls"
+  - name: "mbedtls"
     version: "v2.28.0"
     license: "Apache-2.0"
     repository:
@@ -11,7 +11,7 @@ dependencies:
       url: "https://github.com/ARMmbed/mbedtls.git"
       path: "source/dependency/3rdparty/mbedtls"
 
-  - name : "pkcs11"
+  - name: "pkcs11"
     version: "v2.40_errata01"
     license: "OASIS-IPR"
     repository:

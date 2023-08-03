@@ -1,7 +1,5 @@
-{ "expected-missing-functions":
-  [
-
-  ],
+{
+  "expected-missing-functions": [],
   "proof-name": "C_GetAttributeValue",
   "proof-root": "../test/cbmc/proofs"
 }
