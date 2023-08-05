@@ -176,7 +176,7 @@ jobs:
         with:
           python-version: "3.11.0"
       - name: Check Links
-        uses: FreeRTOS/CI-CD-GitHub-Actions/link-verifier@main
+        uses: Skptak/CI-CD-Github-Actions/link-verifier@main
         with:
           path: ./
           exclude-dirs: cbmc
